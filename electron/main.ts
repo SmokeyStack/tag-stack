@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 
 process.env.APP_ROOT = path.join(__dirname, '..');
@@ -15,7 +15,12 @@ function createWindow() {
         width: 1920,
         height: 1080,
         center: true,
-        autoHideMenuBar: true
+        autoHideMenuBar: true,
+        webPreferences: {
+            preload: path.join(MAIN_DIST, 'preload.js'),
+            webSecurity: false,
+            allowRunningInsecureContent: true
+        }
     });
 
     if (process.env.VITE_DEV_SERVER_URL) {
@@ -31,10 +36,14 @@ app.on('window-all-closed', () => {
 });
 
 app.whenReady().then(() => {
+    ipcMain.handle('app-start-time', () => new Date().toLocaleString());
+    ipcMain.handle('open-file-dialog', async () => {
+        const files = await dialog.showOpenDialog({
+            properties: ['openDirectory']
+        });
+        return files.filePaths;
+    });
     createWindow();
-    console.log(
-        dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'] })
-    );
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
