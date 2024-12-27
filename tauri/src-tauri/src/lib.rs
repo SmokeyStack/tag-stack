@@ -14,3 +14,8 @@ pub fn run() {
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
+
+#[tauri::command]
+fn start_time() -> String {
+  return chrono::Local::now().to_string();
+}

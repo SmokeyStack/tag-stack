@@ -21,8 +21,14 @@
       }
     ],
     "security": {
-      "csp": null
-    }
+      "csp": {
+        "default-src": "asset: http://asset.localhost"
+      },
+      "assetProtocol": {
+        "enable": true
+      }
+    },
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
