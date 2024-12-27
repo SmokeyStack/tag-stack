@@ -1,20 +1,23 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "tag-stack",
   "version": "0.1.0",
-  "identifier": "com.tag-stack.app",
+  "identifier": "com.tauri.dev",
   "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:3000",
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
+    "beforeBuildCommand": "npm run generate"
   },
   "app": {
     "windows": [
       {
         "title": "tag-stack",
-        "width": 800,
-        "height": 600
+        "width": 1920,
+        "height": 1080,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false
       }
     ],
     "security": {
