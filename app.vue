@@ -18,7 +18,7 @@
         const time = await window.ipcRenderer.invoke('app-start-time');
         console.log(`App started at ${time}`);
         const filesPath = await window.ipcRenderer.invoke('open-file-dialog');
-        const { data } = await useFetch('/api/test', {
+        const { data } = await useFetch('/api/fetch_files', {
             query: { data: filesPath }
         });
         output.value = data.value;
