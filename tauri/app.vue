@@ -1,5 +1,5 @@
 <template>
-    <div><button @click="refreshData">Refresh Data</button></div>
+    <div><Button @click="refreshData">Refresh Data</Button></div>
     <div>
         <div v-if="loading">Loading...</div>
         <div v-else>
