@@ -1,17 +1,15 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 
-process.env.APP_ROOT = path.join(__dirname, '..');
-
-export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
-export const RENDERER_DIST = path.join(process.env.APP_ROOT, '.output/public');
-
-process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL
-    ? path.join(process.env.APP_ROOT, 'public')
+const APP_ROOT: string = path.join(__dirname, '..');
+const MAIN_DIST: string = path.join(APP_ROOT, 'dist-electron');
+const RENDERER_DIST: string = path.join(APP_ROOT, '.output/public');
+const VITE_PUBLIC: string = process.env.VITE_DEV_SERVER_URL
+    ? path.join(APP_ROOT, 'public')
     : RENDERER_DIST;
 
-function createWindow() {
-    const window = new BrowserWindow({
+function createWindow(): void {
+    const window_options: Electron.BrowserWindowConstructorOptions = {
         width: 1920,
         height: 1080,
         center: true,
@@ -21,31 +19,39 @@ function createWindow() {
             webSecurity: false,
             allowRunningInsecureContent: true
         }
-    });
-
-    if (process.env.VITE_DEV_SERVER_URL) {
-        window.loadURL(process.env.VITE_DEV_SERVER_URL);
-        // window.webContents.openDevTools();
-    } else {
-        window.loadFile(path.join(process.env.VITE_PUBLIC!, 'index.html'));
-    }
+    };
+    const window: BrowserWindow = new BrowserWindow(window_options);
+    const url: string =
+        process.env.VITE_DEV_SERVER_URL || path.join(VITE_PUBLIC, 'index.html');
+    window.loadURL(url);
 }
 
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit();
-});
+async function handleFileDialog(): Promise<string[]> {
+    const files: Electron.OpenDialogReturnValue = await dialog.showOpenDialog({
+        properties: ['openDirectory']
+    });
 
-app.whenReady().then(() => {
+    return files.filePaths;
+}
+
+function setupIPC(): void {
     ipcMain.handle('app-start-time', () => new Date().toLocaleString());
-    ipcMain.handle('open-file-dialog', async () => {
-        const files = await dialog.showOpenDialog({
-            properties: ['openDirectory']
-        });
-        return files.filePaths;
-    });
-    createWindow();
+    ipcMain.handle('app-open-file-dialog', handleFileDialog);
+}
 
-    app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+function initialzeApp(): void {
+    app.on('window-all-closed', () => {
+        if (process.platform !== 'darwin') app.quit();
     });
-});
+
+    app.whenReady().then(() => {
+        setupIPC();
+        createWindow();
+
+        app.on('activate', () => {
+            if (BrowserWindow.getAllWindows().length === 0) createWindow();
+        });
+    });
+}
+
+initialzeApp();
