@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import path from 'node:path';
 
 const APP_ROOT: string = path.join(__dirname, '..');
@@ -34,9 +34,14 @@ async function handleFileDialog(): Promise<string[]> {
     return files.filePaths;
 }
 
+function openUrl(url: string): void {
+    shell.openExternal(url);
+}
+
 function setupIPC(): void {
     ipcMain.handle('app-start-time', () => new Date().toLocaleString());
     ipcMain.handle('app-open-file-dialog', handleFileDialog);
+    ipcMain.handle('app-open-url', (_, url: string) => openUrl(url));
 }
 
 function initialzeApp(): void {

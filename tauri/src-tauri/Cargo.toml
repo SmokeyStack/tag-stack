@@ -25,3 +25,4 @@ tauri = { version = "2.1.0", features = ["protocol-asset"] }
 tauri-plugin-log = "2.0.0-rc"
 chrono = "0.4.39"
 tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
