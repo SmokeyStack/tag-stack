@@ -15,9 +15,7 @@
         "title": "tag-stack",
         "width": 1920,
         "height": 1080,
-        "center": true,
-        "resizable": true,
-        "fullscreen": false
+        "center": true
       }
     ],
     "security": {
@@ -27,8 +25,7 @@
       "assetProtocol": {
         "enable": true
       }
-    },
-    "withGlobalTauri": true
+    }
   },
   "bundle": {
     "active": true,
