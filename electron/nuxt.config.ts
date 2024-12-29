@@ -2,12 +2,7 @@
 export default defineNuxtConfig({
     compatibilityDate: '2024-11-01',
     devtools: { enabled: true },
-    modules: [
-        'nuxt-electron',
-        '@nuxtjs/tailwindcss',
-        'shadcn-nuxt',
-        '@nuxtjs/color-mode'
-    ],
+    modules: ['nuxt-electron', '@nuxtjs/tailwindcss', 'shadcn-nuxt', '@nuxtjs/color-mode', '@nuxt/image'],
     electron: {
         build: [
             {
