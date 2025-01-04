@@ -1,69 +1,37 @@
 import { Jimp } from 'jimp';
 import * as core from '@tauri-apps/api/core';
 
-export async function resizeImage(src: string): Promise<string | undefined> {
+export async function resizeImage(image: string): Promise<string> {
     try {
-        const mimeType = getMimeType(src);
-        const image1 = await Jimp.read(core.convertFileSrc(src));
-        // image1.fisheye();
+        const original_image = await Jimp.read(core.convertFileSrc(image));
+        const original_width = original_image.bitmap.width;
+        const original_height = original_image.bitmap.height;
+        // Calculate the scaling factor to maintain the aspect ratio
+        const scaling_factor = Math.min(
+            256 / original_width,
+            256 / original_height
+        );
+        const new_width = Math.floor(original_width * scaling_factor);
+        const new_height = Math.floor(original_height * scaling_factor);
+        const resized_image = new Jimp({
+            width: new_width,
+            height: new_height
+        });
 
-        if (image1.bitmap.width < 256 || image1.bitmap.height < 256) {
-            const scalingFactor = Math.max(
-                256 / image1.bitmap.width,
-                256 / image1.bitmap.height
-            );
-
-            const width = image1.bitmap.width;
-            const height = image1.bitmap.height;
-            const jimp = new Jimp({
-                width: width * scalingFactor,
-                height: height * scalingFactor
-            });
-            console.log(
-                'Created image with dimensions:',
-                jimp.bitmap.width,
-                jimp.bitmap.height
-            );
-            for (let i = 0; i < width; i++) {
-                for (let j = 0; j < height; j++) {
-                    const pixelColor = image1.getPixelColor(i, j);
-                    for (let a = 0; a < scalingFactor; a++) {
-                        for (let b = 0; b < scalingFactor; b++) {
-                            jimp.setPixelColor(
-                                pixelColor,
-                                i * scalingFactor + a,
-                                j * scalingFactor + b
-                            );
-                        }
-                    }
-                }
+        for (let x = 0; x < new_width; x++)
+            for (let y = 0; y < new_height; y++) {
+                const original_x = Math.floor(x / scaling_factor);
+                const original_y = Math.floor(y / scaling_factor);
+                const color = original_image.getPixelColor(
+                    original_x,
+                    original_y
+                );
+                resized_image.setPixelColor(color, x, y);
             }
-            return jimp.getBase64('image/png');
-        }
-
-        switch (mimeType) {
-            case 'image/png':
-                return image1.getBase64('image/png');
-            case 'image/jpeg':
-                return image1.getBase64('image/jpeg');
-            default:
-                throw new Error('Unsupported image type');
-        }
+        return resized_image.getBase64('image/png');
     } catch (error) {
-        console.error('Error resizing image:', error);
-        console.error('Image source:', src);
+        throw new Error(
+            `Error resizing ${core.convertFileSrc(image)}: ${error}`
+        );
     }
 }
-
-const getMimeType = (url: string) => {
-    const extension = url.split('.').pop();
-    switch (extension) {
-        case 'png':
-            return 'image/png';
-        case 'jpeg':
-        case 'jpg':
-            return 'image/jpeg';
-        default:
-            return '';
-    }
-};

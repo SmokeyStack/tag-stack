@@ -17,23 +17,23 @@
                             <div>
                                 <div v-if="loading">Loading...</div>
                                 <div
-                                    v-else-if="output.length"
+                                    v-else-if="image_data.length"
                                     class="grid grid-cols-custom-3 gap-4">
                                     <div
-                                        v-for="(image, index) in output"
-                                        :key="image"
+                                        v-for="image in image_data"
+                                        :key="image.url"
                                         class="relative w-32 h-32 overflow-hidden hover:outline hover:outline-blue-500">
-                                        <template v-if="!isSquare(index)">
+                                        <template v-if="!image.is_square">
                                             <img
-                                                :src="image"
-                                                :alt="image"
+                                                :src="image.url"
+                                                :alt="image.url"
                                                 class="w-full h-full object-cover blur" />
                                         </template>
                                         <div
                                             class="absolute inset-0 flex justify-center items-center">
                                             <img
-                                                :src="image"
-                                                :alt="image"
+                                                :src="image.url"
+                                                :alt="image.url"
                                                 class="w-full h-full object-contain" />
                                         </div>
                                     </div>
@@ -69,14 +69,15 @@
     import { ref } from 'vue';
     import { resizeImage } from '@/utils/resize_image';
 
-    const output = ref<string[]>([]);
-    const loading = ref<boolean>(false);
-    const image_dimensions = ref<{ width: number; height: number }[]>([]);
-
-    function isSquare(index: number): boolean {
-        const dimensions = image_dimensions.value[index];
-        return dimensions && dimensions.width === dimensions.height;
+    interface ImageData {
+        url: string;
+        width: number;
+        height: number;
+        is_square: boolean;
     }
+
+    const image_data = ref<ImageData[]>([]);
+    const loading = ref<boolean>(false);
 
     async function fetchData() {
         loading.value = true;
@@ -85,36 +86,38 @@
             const file_path = await window.ipcRenderer.invoke(
                 'app-open-file-dialog'
             );
-            const data: string[] = await $fetch('/api/fetch_files', {
+            const files: string[] = await $fetch('/api/fetch_files', {
                 query: { data: file_path }
             });
-            output.value = data!;
-            data.forEach((img: string, index: number) => {
-                const image = new Image();
-                image.src = img;
-                image.onload = () => {
-                    image_dimensions.value[index] = {
-                        width: image.width,
-                        height: image.height
-                    };
-                };
-            });
-            data.forEach((image: string, index: number) => {
-                resizeImage(image)
-                    .then((resized_image) => {
-                        output.value[index] = resized_image;
-                    })
-                    .catch((err) => {
-                        console.error(err);
+            const new_image_data: ImageData[] = await Promise.all(
+                files.map(async (source: string) => {
+                    const image = new Image();
+                    image.src = source;
+
+                    return new Promise<ImageData>((resolve) => {
+                        image.onload = async () => {
+                            let resized_image = source;
+
+                            if (image.width < 1024 || image.height < 1024)
+                                resized_image = await resizeImage(source);
+
+                            resolve({
+                                url: resized_image,
+                                width: image.width,
+                                height: image.height,
+                                is_square: image.width === image.height
+                            });
+                        };
                     });
-            });
+                })
+            );
+            image_data.value = new_image_data;
         } catch (error) {
             console.error(`Failed to fetch data: ${error}`);
         } finally {
             loading.value = false;
         }
     }
-
     function refreshData() {
         fetchData();
     }
