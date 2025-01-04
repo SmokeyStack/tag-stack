@@ -1,30 +1,12 @@
 <template>
     <div class="h-screen flex flex-col">
-        <Menubar>
-            <MenubarMenu>
-                <MenubarTrigger>File</MenubarTrigger>
-                <MenubarContent>
-                    <MenubarItem> To be implemented </MenubarItem>
-                </MenubarContent>
-            </MenubarMenu>
-            <MenubarMenu>
-                <MenubarTrigger>Edit</MenubarTrigger>
-                <MenubarContent>
-                    <MenubarItem> To be implemented </MenubarItem>
-                </MenubarContent>
-            </MenubarMenu>
-            <MenubarMenu>
-                <MenubarTrigger>Help</MenubarTrigger>
-                <MenubarContent>
-                    <MenubarItem @click="openGithub">
-                        Visit Github Repository
-                    </MenubarItem>
-                </MenubarContent>
-            </MenubarMenu>
-        </Menubar>
+        <AppMenubar />
         <div class="flex-grow overflow-hidden">
             <ResizablePanelGroup direction="horizontal" class="h-full">
-                <ResizablePanel class="h-full" :min-size="21">
+                <ResizablePanel
+                    class="h-full"
+                    :min-size="21"
+                    :default-size="79">
                     <ScrollArea class="h-full rounded-md border p-4">
                         <div class="p-4 h-full overflow-auto">
                             <div>
@@ -38,20 +20,21 @@
                                     v-else-if="output.length"
                                     class="grid grid-cols-custom-3 gap-4">
                                     <div
-                                        v-for="image in output"
+                                        v-for="(image, index) in output"
                                         :key="image"
-                                        class="relative w-full h-64 overflow-hidden">
-                                        <img
-                                            :src="image"
-                                            :alt="image"
-                                            class="absolute inset-0 w-full h-full object-cover filter blur-lg" />
-                                        <!-- Centered foreground image -->
+                                        class="relative w-32 h-32 overflow-hidden hover:outline hover:outline-blue-500">
+                                        <template v-if="!isSquare(index)">
+                                            <img
+                                                :src="image"
+                                                :alt="image"
+                                                class="w-full h-full object-cover blur" />
+                                        </template>
                                         <div
                                             class="absolute inset-0 flex justify-center items-center">
                                             <img
                                                 :src="image"
                                                 :alt="image"
-                                                class="object-contain" />
+                                                class="w-full h-full object-contain" />
                                         </div>
                                     </div>
                                 </div>
@@ -61,7 +44,10 @@
                     </ScrollArea>
                 </ResizablePanel>
                 <ResizableHandle with-handle />
-                <ResizablePanel class="h-full" :min-size="21">
+                <ResizablePanel
+                    class="h-full"
+                    :min-size="21"
+                    :default-size="21">
                     <div class="h-full p-4 flex items-center justify-center">
                         Two
                     </div>
@@ -74,13 +60,6 @@
 <script setup lang="ts">
     import { Button } from '@/components/ui/button';
     import {
-        Menubar,
-        MenubarContent,
-        MenubarItem,
-        MenubarMenu,
-        MenubarTrigger
-    } from '@/components/ui/menubar';
-    import {
         ResizableHandle,
         ResizablePanel,
         ResizablePanelGroup
@@ -89,41 +68,59 @@
 
     import * as core from '@tauri-apps/api/core';
     import * as dialog from '@tauri-apps/plugin-dialog';
-    import * as shell from '@tauri-apps/plugin-shell';
 
     import { ref } from 'vue';
-
-    const openGithub = () => {
-        shell.open('https://github.com/SmokeyStack/tag-stack');
-    };
+    import { resizeImage } from '@/utils/resize_image';
 
     const output = ref<string[]>([]);
     const loading = ref<boolean>(false);
-    const fetchData = async () => {
+    const image_dimensions = ref<{ width: number; height: number }[]>([]);
+
+    function isSquare(index: number): boolean {
+        const dimensions = image_dimensions.value[index];
+        return dimensions && dimensions.width === dimensions.height;
+    }
+
+    async function fetchData() {
         loading.value = true;
 
         try {
-            core.invoke('start_time').then((message: any) =>
-                console.log(`App started at ${message}`)
-            );
             const file_path: string | null = await dialog.open({
                 multiple: false,
                 directory: true
             });
-            const { data } = await useFetch('/api/fetch_files', {
+            const data: string[] = await $fetch('/api/fetch_files', {
                 query: { data: file_path }
             });
-            data.value = data.value!.map((image: string) => {
-                return core.convertFileSrc(image);
+            data.forEach((img: string, index: number) => {
+                const converted_img: string = core.convertFileSrc(img);
+                output.value[index] = converted_img;
+                const image = new Image();
+                image.src = converted_img;
+                image.onload = () => {
+                    image_dimensions.value[index] = {
+                        width: image.width,
+                        height: image.height
+                    };
+                };
             });
-            output.value = data.value!;
+            data.forEach((image: string, index: number) => {
+                resizeImage(image)
+                    .then((resized_image) => {
+                        output.value[index] = resized_image;
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                    });
+            });
         } catch (error) {
             console.error(`Failed to fetch data: ${error}`);
         } finally {
             loading.value = false;
         }
-    };
-    const refreshData = () => {
+    }
+
+    function refreshData() {
         fetchData();
-    };
+    }
 </script>

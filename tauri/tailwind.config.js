@@ -81,9 +81,9 @@ module.exports = {
                 'collapsible-up': 'collapsible-up 0.2s ease-in-out'
             },
             gridTemplateColumns: {
-                'custom-1': 'repeat(auto-fill, minmax(100px, 1fr))',
-                'custom-2': 'repeat(auto-fill, minmax(150px, 1fr))',
-                'custom-3': 'repeat(auto-fill, minmax(200px, 1fr))'
+                'custom-1': 'repeat(auto-fill, minmax(32px, 1fr))',
+                'custom-2': 'repeat(auto-fill, minmax(64px, 1fr))',
+                'custom-3': 'repeat(auto-fill, minmax(128px, 1fr))'
             }
         }
     },

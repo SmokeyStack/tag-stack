@@ -39,7 +39,6 @@ function openUrl(url: string): void {
 }
 
 function setupIPC(): void {
-    ipcMain.handle('app-start-time', () => new Date().toLocaleString());
     ipcMain.handle('app-open-file-dialog', handleFileDialog);
     ipcMain.handle('app-open-url', (_, url: string) => openUrl(url));
 }

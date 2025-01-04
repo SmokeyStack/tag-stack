@@ -1,27 +1,6 @@
 <template>
     <div class="h-screen flex flex-col">
-        <Menubar>
-            <MenubarMenu>
-                <MenubarTrigger>File</MenubarTrigger>
-                <MenubarContent>
-                    <MenubarItem> To be implemented </MenubarItem>
-                </MenubarContent>
-            </MenubarMenu>
-            <MenubarMenu>
-                <MenubarTrigger>Edit</MenubarTrigger>
-                <MenubarContent>
-                    <MenubarItem> To be implemented </MenubarItem>
-                </MenubarContent>
-            </MenubarMenu>
-            <MenubarMenu>
-                <MenubarTrigger>Help</MenubarTrigger>
-                <MenubarContent>
-                    <MenubarItem @click="openGithub">
-                        Visit Github Repository
-                    </MenubarItem>
-                </MenubarContent>
-            </MenubarMenu>
-        </Menubar>
+        <AppMenubar />
         <div class="flex-grow overflow-hidden">
             <ResizablePanelGroup direction="horizontal" class="h-full">
                 <ResizablePanel
@@ -45,14 +24,14 @@
                                         :key="image"
                                         class="relative w-32 h-32 overflow-hidden hover:outline hover:outline-blue-500">
                                         <template v-if="!isSquare(index)">
-                                            <NuxtImg
+                                            <img
                                                 :src="image"
                                                 :alt="image"
                                                 class="w-full h-full object-cover blur" />
                                         </template>
                                         <div
                                             class="absolute inset-0 flex justify-center items-center">
-                                            <NuxtImg
+                                            <img
                                                 :src="image"
                                                 :alt="image"
                                                 class="w-full h-full object-contain" />
@@ -81,13 +60,6 @@
 <script setup lang="ts">
     import { Button } from '@/components/ui/button';
     import {
-        Menubar,
-        MenubarContent,
-        MenubarItem,
-        MenubarMenu,
-        MenubarTrigger
-    } from '@/components/ui/menubar';
-    import {
         ResizableHandle,
         ResizablePanel,
         ResizablePanelGroup
@@ -101,14 +73,7 @@
     const loading = ref<boolean>(false);
     const image_dimensions = ref<{ width: number; height: number }[]>([]);
 
-    function openGithub() {
-        window.ipcRenderer.invoke(
-            'app-open-url',
-            'https://github.com/SmokeyStack/tag-stack'
-        );
-    }
-
-    function isSquare(index: number) {
+    function isSquare(index: number): boolean {
         const dimensions = image_dimensions.value[index];
         return dimensions && dimensions.width === dimensions.height;
     }
@@ -117,27 +82,31 @@
         loading.value = true;
 
         try {
-            const time = await window.ipcRenderer.invoke('app-start-time');
-            console.log(`App started at ${time}`);
             const file_path = await window.ipcRenderer.invoke(
                 'app-open-file-dialog'
             );
-            const { data } = await useFetch('/api/fetch_files', {
+            const data: string[] = await $fetch('/api/fetch_files', {
                 query: { data: file_path }
             });
-            output.value = data.value!;
-            const pixel_ratio = window.devicePixelRatio;
-            data.value!.forEach(async (img, index) => {
-                const resizedImg = await resizeImage(img, pixel_ratio);
-                output.value[index] = resizedImg;
+            output.value = data!;
+            data.forEach((img: string, index: number) => {
                 const image = new Image();
-                image.src = resizedImg;
+                image.src = img;
                 image.onload = () => {
                     image_dimensions.value[index] = {
                         width: image.width,
                         height: image.height
                     };
                 };
+            });
+            data.forEach((image: string, index: number) => {
+                resizeImage(image)
+                    .then((resized_image) => {
+                        output.value[index] = resized_image;
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                    });
             });
         } catch (error) {
             console.error(`Failed to fetch data: ${error}`);

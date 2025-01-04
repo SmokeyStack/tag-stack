@@ -1,9 +1,10 @@
 import { Jimp } from 'jimp';
+import * as core from '@tauri-apps/api/core';
 
 export async function resizeImage(src: string): Promise<string | undefined> {
     try {
         const mimeType = getMimeType(src);
-        const image1 = await Jimp.read(src);
+        const image1 = await Jimp.read(core.convertFileSrc(src));
         // image1.fisheye();
 
         if (image1.bitmap.width < 256 || image1.bitmap.height < 256) {
