@@ -8,6 +8,8 @@
   "permissions": [
     "core:default",
     "dialog:default",
-    "shell:default"
+    "shell:default",
+    "sql:default",
+    "sql:allow-execute"
   ]
 }
