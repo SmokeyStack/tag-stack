@@ -218,67 +218,65 @@
         return url.split('.').pop()!.toUpperCase();
     }
     onMounted(async () => {
-        (async () => {
-            const tags_temp = [
-                {
-                    id: 0,
-                    name: 'Archived',
-                    aliases: ['Archive'],
-                    color: 'Red'
-                },
-                {
-                    id: 1,
-                    name: 'Favorite',
-                    aliases: ['Favorited', 'Favorites'],
-                    color: 'Yellow'
-                },
-                {
-                    id: 1000,
-                    name: 'Deferred Rendering',
-                    shorthand: 'dr',
-                    aliases: ['shaders'],
-                    color: 'mint'
-                }
-            ];
+        const tags_temp = [
+            {
+                id: 0,
+                name: 'Archived',
+                aliases: ['Archive'],
+                color: 'Red'
+            },
+            {
+                id: 1,
+                name: 'Favorite',
+                aliases: ['Favorited', 'Favorites'],
+                color: 'Yellow'
+            },
+            {
+                id: 1000,
+                name: 'Deferred Rendering',
+                shorthand: 'dr',
+                aliases: ['shaders'],
+                color: 'mint'
+            }
+        ];
+        await window.ipcRenderer.invoke(
+            'sqlite-operations',
+            'run',
+            'CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, name TEXT, shorthand TEXT, color TEXT)'
+        );
+        await window.ipcRenderer.invoke(
+            'sqlite-operations',
+            'run',
+            'CREATE TABLE IF NOT EXISTS aliases (id INTEGER PRIMARY KEY AUTOINCREMENT, tag_id INTEGER, alias TEXT, UNIQUE (tag_id, alias), FOREIGN KEY (tag_id) REFERENCES tags (id))'
+        );
+        for (const tag of tags_temp) {
             await window.ipcRenderer.invoke(
                 'sqlite-operations',
                 'run',
-                'CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, name TEXT, shorthand TEXT, color TEXT)'
+                'INSERT OR REPLACE INTO tags (id, name, shorthand, color) VALUES (?, ?, ?, ?)',
+                [tag.id, tag.name, tag.shorthand || null, tag.color]
             );
-            await window.ipcRenderer.invoke(
-                'sqlite-operations',
-                'run',
-                'CREATE TABLE IF NOT EXISTS aliases (id INTEGER PRIMARY KEY AUTOINCREMENT, tag_id INTEGER, alias TEXT, UNIQUE (tag_id, alias), FOREIGN KEY (tag_id) REFERENCES tags (id))'
-            );
-            for (const tag of tags_temp) {
+            for (const alias of tag.aliases) {
                 await window.ipcRenderer.invoke(
                     'sqlite-operations',
                     'run',
-                    'INSERT OR REPLACE INTO tags (id, name, shorthand, color) VALUES (?, ?, ?, ?)',
-                    [tag.id, tag.name, tag.shorthand || null, tag.color]
+                    'INSERT OR IGNORE INTO aliases (tag_id, alias) VALUES (?, ?)',
+                    [tag.id, alias]
                 );
-                for (const alias of tag.aliases) {
-                    await window.ipcRenderer.invoke(
-                        'sqlite-operations',
-                        'run',
-                        'INSERT OR IGNORE INTO aliases (tag_id, alias) VALUES (?, ?)',
-                        [tag.id, alias]
-                    );
-                }
             }
-            const t = await window.ipcRenderer.invoke(
-                'sqlite-operations',
-                'each',
-                'SELECT * FROM tags'
-            );
-            t.forEach((tag: { name: string }) => {
-                tags.value.push(tag.name);
-            });
-            await window.ipcRenderer.invoke(
-                'sqlite-operations',
-                'each',
-                'SELECT * FROM aliases'
-            );
-        })();
+        }
+        const tags_result = await window.ipcRenderer.invoke(
+            'sqlite-operations',
+            'each',
+            'SELECT * FROM tags'
+        );
+        tags_result.forEach((tag: { name: string }) => {
+            tags.value.push(tag.name);
+        });
+        await window.ipcRenderer.invoke(
+            'sqlite-operations',
+            'each',
+            'SELECT * FROM aliases'
+        );
     });
 </script>

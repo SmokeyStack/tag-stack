@@ -142,7 +142,9 @@
     } from '@/components/ui/tags-input';
 
     import * as core from '@tauri-apps/api/core';
+    import * as path from '@tauri-apps/api/path';
     import * as dialog from '@tauri-apps/plugin-dialog';
+    import * as fs from '@tauri-apps/plugin-fs';
     import * as sql from '@tauri-apps/plugin-sql';
 
     import { ref } from 'vue';
@@ -264,30 +266,32 @@
                 color: 'mint'
             }
         ];
-        const db = await sql.default.load('sqlite:tags.db');
-        db.execute(
+        if (!(await fs.exists('db', { baseDir: path.BaseDirectory.AppData })))
+            await fs.mkdir('db', { baseDir: path.BaseDirectory.AppData });
+
+        const db = await sql.default.load(`sqlite:db/tags.db`);
+        await db.execute(
             'CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, name TEXT, shorthand TEXT, color TEXT)'
         );
-        db.execute(
+        await db.execute(
             'CREATE TABLE IF NOT EXISTS aliases (id INTEGER PRIMARY KEY AUTOINCREMENT, tag_id INTEGER, alias TEXT, UNIQUE (tag_id, alias), FOREIGN KEY (tag_id) REFERENCES tags (id))'
         );
         for (const tag of tags_temp) {
-            db.execute(
+            await db.execute(
                 'INSERT OR REPLACE INTO tags (id, name, shorthand, color) VALUES ($1, $2, $3, $4)',
                 [tag.id, tag.name, tag.shorthand || null, tag.color]
             );
-            for (const alias of tag.aliases) {
-                db.execute(
+            for (const alias of tag.aliases)
+                await db.execute(
                     'INSERT OR IGNORE INTO aliases (tag_id, alias) VALUES ($1, $2)',
                     [tag.id, alias]
                 );
-            }
         }
         const tags_result: any = await db.select('SELECT * FROM tags');
         tags_result.forEach((tag: { name: string }) => {
             tags.value.push(tag.name);
         });
-        db.select('SELECT * FROM aliases');
-        db.close();
+        await db.select('SELECT * FROM aliases');
+        await db.close();
     });
 </script>

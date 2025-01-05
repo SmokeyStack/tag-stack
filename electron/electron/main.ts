@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 const sqlite3 = require('sqlite3');
 import path from 'node:path';
+import fs from 'node:fs';
 
 const APP_ROOT: string = path.join(__dirname, '..');
 const MAIN_DIST: string = path.join(APP_ROOT, 'dist-electron');
@@ -37,7 +38,11 @@ function openUrl(url: string): void {
     shell.openExternal(url);
 }
 function sqliteOperations(action: any, sql: any, params = []) {
-    const db = new sqlite3.Database('tags.db');
+    if (!fs.existsSync(`${app.getPath('userData')}/db`))
+        fs.mkdirSync(`${app.getPath('userData')}/db`);
+
+    const db = new sqlite3.Database(`${app.getPath('userData')}/db/tags.db`);
+
     return new Promise((resolve, reject) => {
         const callback = (err: any, result: unknown) => {
             if (err) reject(err);
