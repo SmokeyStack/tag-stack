@@ -68,35 +68,54 @@
                         </ResizablePanel>
                         <ResizableHandle with-handle />
                         <ResizablePanel :min-size="40" :default-size="75">
+                            <template v-if="selected_image">
+                                <div class="flex p-6">
+                                    <div class="flex flex-col">
+                                        <div>
+                                            <span>
+                                                {{ selected_image?.directory }}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span class="font-semibold">
+                                                {{ selected_image?.filename }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex pl-6">
+                                    <div class="flex flex-col">
+                                        <div>
+                                            <span class="font-semibold">
+                                                {{ selected_image?.extension }}
+                                                -
+                                                {{ selected_image?.size }}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span class="font-semibold">
+                                                {{ selected_image?.width }} x
+                                                {{ selected_image?.height }} px
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
                             <div class="flex p-6">
-                                <div class="flex flex-col">
-                                    <div>
-                                        <span>
-                                            {{ selected_image?.directory }}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span class="font-semibold">
-                                            {{ selected_image?.filename }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex pl-6">
-                                <div class="flex flex-col">
-                                    <div>
-                                        <span class="font-semibold">
-                                            {{ selected_image?.extension }} -
-                                            {{ selected_image?.size }}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span class="font-semibold">
-                                            {{ selected_image?.width }} x
-                                            {{ selected_image?.height }} px
-                                        </span>
-                                    </div>
-                                </div>
+                                <TagsInput v-model="tags">
+                                    <TagsInputItem
+                                        v-for="tag in tags"
+                                        :key="tag"
+                                        :value="tag"
+                                        class="text-[#164f3e] bg-[#4aed90] outline outline-[#79f2b1]">
+                                        <TagsInputItemText />
+                                        <TagsInputItemDelete
+                                            :style="{
+                                                color: '#164f3e'
+                                            }" />
+                                    </TagsInputItem>
+                                    <TagsInputInput placeholder="+" />
+                                </TagsInput>
                             </div>
                         </ResizablePanel>
                     </ResizablePanelGroup>
@@ -114,6 +133,13 @@
         ResizablePanelGroup
     } from '@/components/ui/resizable';
     import { ScrollArea } from '@/components/ui/scroll-area';
+    import {
+        TagsInput,
+        TagsInputInput,
+        TagsInputItem,
+        TagsInputItemDelete,
+        TagsInputItemText
+    } from '@/components/ui/tags-input';
 
     import { ref } from 'vue';
     import { resizeImage } from '@/utils/resize_image';
@@ -132,6 +158,7 @@
     const image_data = ref<ImageData[]>([]);
     const selected_image = ref<ImageData | null>(null);
     const loading = ref<boolean>(false);
+    const tags = ref<string[]>([]);
 
     async function fetchData() {
         loading.value = true;
@@ -190,4 +217,68 @@
     function getExtension(url: string): string {
         return url.split('.').pop()!.toUpperCase();
     }
+    onMounted(async () => {
+        (async () => {
+            const tags_temp = [
+                {
+                    id: 0,
+                    name: 'Archived',
+                    aliases: ['Archive'],
+                    color: 'Red'
+                },
+                {
+                    id: 1,
+                    name: 'Favorite',
+                    aliases: ['Favorited', 'Favorites'],
+                    color: 'Yellow'
+                },
+                {
+                    id: 1000,
+                    name: 'Deferred Rendering',
+                    shorthand: 'dr',
+                    aliases: ['shaders'],
+                    color: 'mint'
+                }
+            ];
+            await window.ipcRenderer.invoke(
+                'sqlite-operations',
+                'run',
+                'CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, name TEXT, shorthand TEXT, color TEXT)'
+            );
+            await window.ipcRenderer.invoke(
+                'sqlite-operations',
+                'run',
+                'CREATE TABLE IF NOT EXISTS aliases (id INTEGER PRIMARY KEY AUTOINCREMENT, tag_id INTEGER, alias TEXT, UNIQUE (tag_id, alias), FOREIGN KEY (tag_id) REFERENCES tags (id))'
+            );
+            for (const tag of tags_temp) {
+                await window.ipcRenderer.invoke(
+                    'sqlite-operations',
+                    'run',
+                    'INSERT OR REPLACE INTO tags (id, name, shorthand, color) VALUES (?, ?, ?, ?)',
+                    [tag.id, tag.name, tag.shorthand || null, tag.color]
+                );
+                for (const alias of tag.aliases) {
+                    await window.ipcRenderer.invoke(
+                        'sqlite-operations',
+                        'run',
+                        'INSERT OR IGNORE INTO aliases (tag_id, alias) VALUES (?, ?)',
+                        [tag.id, alias]
+                    );
+                }
+            }
+            const t = await window.ipcRenderer.invoke(
+                'sqlite-operations',
+                'each',
+                'SELECT * FROM tags'
+            );
+            t.forEach((tag: { name: string }) => {
+                tags.value.push(tag.name);
+            });
+            await window.ipcRenderer.invoke(
+                'sqlite-operations',
+                'each',
+                'SELECT * FROM aliases'
+            );
+        })();
+    });
 </script>
