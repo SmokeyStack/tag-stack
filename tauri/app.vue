@@ -10,9 +10,7 @@
                     <ScrollArea class="h-full rounded-md border p-4">
                         <div class="p-4 h-full overflow-auto">
                             <div>
-                                <Button @click="refreshData">
-                                    Refresh Data
-                                </Button>
+                                <Button @click="getImages"> Get Images </Button>
                             </div>
                             <div>
                                 <div v-if="loading">Loading...</div>
@@ -102,19 +100,56 @@
                                 </div>
                             </template>
                             <div class="flex p-6">
-                                <TagsInput v-model="tags">
+                                <TagsInput
+                                    v-model="tags"
+                                    class="w-full h-m-16 p-4">
                                     <TagsInputItem
                                         v-for="tag in tags"
-                                        :key="tag"
-                                        :value="tag"
-                                        class="text-[#164f3e] bg-[#4aed90] outline outline-[#79f2b1]">
+                                        :key="tag.id"
+                                        :value="tag.name"
+                                        :style="{
+                                            color: TAG_COLORS[
+                                                tag.color as keyof typeof TAG_COLORS
+                                            ]?.TEXT,
+                                            background: TAG_COLORS[
+                                                tag.color as keyof typeof TAG_COLORS
+                                            ]?.PRIMARY,
+                                            outline: `2px solid ${TAG_COLORS[
+                                                tag.color as keyof typeof TAG_COLORS
+                                            ]?.BORDER}`
+                                        }"
+                                        class="font-semibold text-center">
                                         <TagsInputItemText />
                                         <TagsInputItemDelete
                                             :style="{
-                                                color: '#164f3e'
+                                                color: TAG_COLORS[
+                                                tag.color as keyof typeof TAG_COLORS
+                                            ]?.TEXT
                                             }" />
                                     </TagsInputItem>
-                                    <TagsInputInput placeholder="+" />
+                                    <Plus
+                                        class="w-4 h-4"
+                                        @click="open = true" />
+                                    <CommandDialog v-model:open="open">
+                                        <CommandInput
+                                            placeholder="Search Tags" />
+                                        <CommandList>
+                                            <CommandEmpty>
+                                                No results found.
+                                            </CommandEmpty>
+                                            <CommandGroup heading="Tags">
+                                                <CommandItem
+                                                    v-for="tag in tags"
+                                                    :key="tag.id"
+                                                    :value="tag.name"
+                                                    @select.prevent="
+                                                        handleTagSelect(tag)
+                                                    ">
+                                                    {{ tag.name }}
+                                                </CommandItem>
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </CommandDialog>
                                 </TagsInput>
                             </div>
                         </ResizablePanel>
@@ -135,11 +170,17 @@
     import { ScrollArea } from '@/components/ui/scroll-area';
     import {
         TagsInput,
-        TagsInputInput,
         TagsInputItem,
         TagsInputItemDelete,
         TagsInputItemText
     } from '@/components/ui/tags-input';
+    import {
+        CommandEmpty,
+        CommandGroup,
+        CommandItem,
+        CommandList
+    } from '@/components/ui/command';
+    import { Plus } from 'lucide-vue-next';
 
     import * as core from '@tauri-apps/api/core';
     import * as path from '@tauri-apps/api/path';
@@ -149,6 +190,8 @@
 
     import { ref } from 'vue';
     import { resizeImage } from '@/utils/resize_image';
+    import { fetchTags, type Tag } from '@/composables/fetch_tags';
+    import { emitEvent } from './utils/event_bus';
 
     interface ImageData {
         url: string;
@@ -164,79 +207,89 @@
     const image_data = ref<ImageData[]>([]);
     const selected_image = ref<ImageData | null>(null);
     const loading = ref<boolean>(false);
-    const tags = ref<string[]>([]);
+    const open = ref(false);
+    const tags = ref<Tag[]>([]);
+    const available_tags: Tag[] = [];
+    const search_term = ref('');
+    const filteredTags = computed(() =>
+        available_tags.filter((i) => !tags.value.includes(i))
+    );
 
-    async function fetchData() {
+    async function openDialog(): Promise<string | null> {
+        try {
+            return await dialog.open({ multiple: false, directory: true });
+        } catch (error) {
+            console.error('Error opening dialog:', error);
+            throw new Error('Failed to open dialog.');
+        }
+    }
+    async function fetchFiles(file_path: string): Promise<FileData[]> {
+        try {
+            return await $fetch('/api/fetch_files', {
+                query: { data: file_path }
+            });
+        } catch (error) {
+            console.error('Error fetching files:', error);
+            throw new Error('Failed to fetch files.');
+        }
+    }
+    async function processImage(image: FileData): Promise<ImageData> {
+        return new Promise<ImageData>((resolve) => {
+            const converted_image = core.convertFileSrc(image.file_path);
+            const image_reader = new Image();
+            image_reader.src = converted_image;
+            image_reader.onload = async () => {
+                if (image_reader.width < 256 || image_reader.height < 256) {
+                    const result = await resizeImage(image.file_path);
+                    resolve(createImageData(result, image, image_reader));
+                } else
+                    resolve(
+                        createImageData(converted_image, image, image_reader)
+                    );
+            };
+        });
+    }
+    function createImageData(
+        url: string,
+        source: FileData,
+        image: HTMLImageElement
+    ) {
+        return {
+            url,
+            width: image.width,
+            height: image.height,
+            is_square: image.width === image.height,
+            directory: source.file_path.substring(
+                0,
+                source.file_path.lastIndexOf('\\')
+            ),
+            filename: source.file_path.substring(
+                source.file_path.lastIndexOf('\\') + 1
+            ),
+            extension: getExtension(source.file_path),
+            size: source.file_size
+        };
+    }
+    async function getImages() {
         loading.value = true;
 
         try {
-            const file_path: string | null = await dialog.open({
-                multiple: false,
-                directory: true
-            });
-            const files = await $fetch('/api/fetch_files', {
-                query: { data: file_path }
-            });
+            const file_path: string | null = await openDialog();
+
+            if (!file_path) throw new Error('No file path selected.');
+
+            const files = await fetchFiles(file_path);
             const new_image_data: ImageData[] = await Promise.all(
-                files.map(async (source) => {
-                    const converted_image: string = core.convertFileSrc(
-                        source.path
-                    );
-                    const image = new Image();
-                    image.src = converted_image;
-
-                    return new Promise<ImageData>((resolve) => {
-                        image.onload = async () => {
-                            let resized_image = converted_image;
-
-                            if (image.width < 256 || image.height < 256) {
-                                resizeImage(source.path).then((result) => {
-                                    resolve({
-                                        url: result,
-                                        width: image.width,
-                                        height: image.height,
-                                        is_square: image.width === image.height,
-                                        directory: source.path.substring(
-                                            0,
-                                            source.path.lastIndexOf('\\')
-                                        ),
-                                        filename: source.path.substring(
-                                            source.path.lastIndexOf('\\') + 1
-                                        ),
-                                        extension: getExtension(source.path),
-                                        size: source.size
-                                    });
-                                });
-                            } else {
-                                resolve({
-                                    url: resized_image,
-                                    width: image.width,
-                                    height: image.height,
-                                    is_square: image.width === image.height,
-                                    directory: source.path.substring(
-                                        0,
-                                        source.path.lastIndexOf('\\')
-                                    ),
-                                    filename: source.path.substring(
-                                        source.path.lastIndexOf('\\') + 1
-                                    ),
-                                    extension: getExtension(source.path),
-                                    size: source.size
-                                });
-                            }
-                        };
-                    });
-                })
+                files.map(processImage)
             );
             image_data.value = new_image_data;
         } catch (error) {
-            console.error(`Failed to fetch data: ${error}`);
+            console.error(
+                `An error occurred while trying to get images: ${error}`
+            );
         } finally {
             loading.value = false;
         }
-    }
-    function refreshData() {
-        fetchData();
     }
     function selectImage(image: ImageData) {
         selected_image.value = image;
@@ -244,26 +297,33 @@
     function getExtension(url: string): string {
         return url.split('.').pop()!.toUpperCase();
     }
+    function handleTagSelect(tag: Tag) {
+        if (typeof tag === 'string') {
+            search_term.value = '';
+            tags.value.push(tag);
+        }
+        if (filteredTags.value.length === 0) open.value = false;
+    }
     onMounted(async () => {
         const tags_temp = [
             {
                 id: 0,
                 name: 'Archived',
                 aliases: ['Archive'],
-                color: 'Red'
+                color: 'RED'
             },
             {
                 id: 1,
                 name: 'Favorite',
                 aliases: ['Favorited', 'Favorites'],
-                color: 'Yellow'
+                color: 'YELLOW'
             },
             {
                 id: 1000,
                 name: 'Deferred Rendering',
                 shorthand: 'dr',
                 aliases: ['shaders'],
-                color: 'mint'
+                color: 'MINT'
             }
         ];
         if (!(await fs.exists('db', { baseDir: path.BaseDirectory.AppData })))
@@ -287,11 +347,14 @@
                     [tag.id, alias]
                 );
         }
-        const tags_result: any = await db.select('SELECT * FROM tags');
-        tags_result.forEach((tag: { name: string }) => {
-            tags.value.push(tag.name);
-        });
-        await db.select('SELECT * FROM aliases');
         await db.close();
+        const tagNames = await fetchTags();
+        console.log(
+            TAG_COLORS[tagNames.tags.value[2].color as keyof typeof TAG_COLORS]
+                .PRIMARY
+        );
+        available_tags.push(...tagNames.tags.value);
+        tags.value.push(...tagNames.tags.value);
+        emitEvent('fetch_tags');
     });
 </script>

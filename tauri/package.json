@@ -1,5 +1,5 @@
 {
-  "name": "tag-stack",
+  "name": "tag-stack-tauri",
   "private": true,
   "type": "module",
   "scripts": {
