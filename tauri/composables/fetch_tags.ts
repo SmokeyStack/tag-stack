@@ -3,7 +3,7 @@ import * as sql from '@tauri-apps/plugin-sql';
 
 const tags = ref<Tag[]>([]);
 
-export async function fetchTags() {
+export async function fetchTags(): Promise<Tag[]> {
     if (!tags.value.length) {
         await useAsyncData('tags', async () => {
             const db = await sql.default.load('sqlite:db/tags.db');
@@ -29,5 +29,5 @@ export async function fetchTags() {
         const { data: fetchedTags } = useNuxtData('tags');
         tags.value = fetchedTags.value;
     }
-    return { tags };
+    return tags.value;
 }

@@ -1,5 +1,5 @@
 {
-  "name": "tag-stack",
+  "name": "tag-stack-electron",
   "private": true,
   "scripts": {
     "build": "nuxt build",

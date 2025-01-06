@@ -190,22 +190,11 @@
 
     import { ref } from 'vue';
     import { resizeImage } from '@/utils/resize_image';
-    import { fetchTags, type Tag } from '@/composables/fetch_tags';
-    import { emitEvent } from './utils/event_bus';
+    import { fetchTags } from '@/composables/fetch_tags';
+    import { emitEvent } from '@/utils/event_bus';
 
-    interface ImageData {
-        url: string;
-        width: number;
-        height: number;
-        is_square: boolean;
-        directory: string;
-        filename: string;
-        extension: string;
-        size: string;
-    }
-
-    const image_data = ref<ImageData[]>([]);
-    const selected_image = ref<ImageData | null>(null);
+    const image_data = ref<TagStackImageData[]>([]);
+    const selected_image = ref<TagStackImageData | null>(null);
     const loading = ref<boolean>(false);
     const open = ref(false);
     const tags = ref<Tag[]>([]);
@@ -233,27 +222,33 @@
             throw new Error('Failed to fetch files.');
         }
     }
-    async function processImage(image: FileData): Promise<ImageData> {
-        return new Promise<ImageData>((resolve) => {
+    async function processImage(image: FileData): Promise<TagStackImageData> {
+        return new Promise<TagStackImageData>((resolve) => {
             const converted_image = core.convertFileSrc(image.file_path);
             const image_reader = new Image();
             image_reader.src = converted_image;
             image_reader.onload = async () => {
                 if (image_reader.width < 256 || image_reader.height < 256) {
                     const result = await resizeImage(image.file_path);
-                    resolve(createImageData(result, image, image_reader));
+                    resolve(
+                        createTagStackImageData(result, image, image_reader)
+                    );
                 } else
                     resolve(
-                        createImageData(converted_image, image, image_reader)
+                        createTagStackImageData(
+                            converted_image,
+                            image,
+                            image_reader
+                        )
                     );
             };
         });
     }
-    function createImageData(
+    function createTagStackImageData(
         url: string,
         source: FileData,
         image: HTMLImageElement
-    ) {
+    ): TagStackImageData {
         return {
             url,
             width: image.width,
@@ -278,8 +273,8 @@
 
             if (!file_path) throw new Error('No file path selected.');
 
-            const files = await fetchFiles(file_path);
-            const new_image_data: ImageData[] = await Promise.all(
+            const files: FileData[] = await fetchFiles(file_path);
+            const new_image_data: TagStackImageData[] = await Promise.all(
                 files.map(processImage)
             );
             image_data.value = new_image_data;
@@ -291,7 +286,7 @@
             loading.value = false;
         }
     }
-    function selectImage(image: ImageData) {
+    function selectImage(image: TagStackImageData) {
         selected_image.value = image;
     }
     function getExtension(url: string): string {
@@ -336,11 +331,13 @@
         await db.execute(
             'CREATE TABLE IF NOT EXISTS aliases (id INTEGER PRIMARY KEY AUTOINCREMENT, tag_id INTEGER, alias TEXT, UNIQUE (tag_id, alias), FOREIGN KEY (tag_id) REFERENCES tags (id))'
         );
+
         for (const tag of tags_temp) {
             await db.execute(
                 'INSERT OR REPLACE INTO tags (id, name, shorthand, color) VALUES ($1, $2, $3, $4)',
                 [tag.id, tag.name, tag.shorthand || null, tag.color]
             );
+
             for (const alias of tag.aliases)
                 await db.execute(
                     'INSERT OR IGNORE INTO aliases (tag_id, alias) VALUES ($1, $2)',
@@ -348,13 +345,11 @@
                 );
         }
         await db.close();
-        const tagNames = await fetchTags();
-        console.log(
-            TAG_COLORS[tagNames.tags.value[2].color as keyof typeof TAG_COLORS]
-                .PRIMARY
-        );
-        available_tags.push(...tagNames.tags.value);
-        tags.value.push(...tagNames.tags.value);
+
+        const fetchedTags = await fetchTags();
+        available_tags.push(...fetchedTags);
+        tags.value.push(...fetchedTags);
+
         emitEvent('fetch_tags');
     });
 </script>

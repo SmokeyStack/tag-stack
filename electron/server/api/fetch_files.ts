@@ -22,7 +22,6 @@ async function getFileSize(image: fs.PathLike): Promise<string> {
         return 'Unknown size';
     }
 }
-
 export default defineEventHandler(async (event) => {
     const query = getQuery(event);
     const directory: string = query.data as string;
@@ -35,9 +34,10 @@ export default defineEventHandler(async (event) => {
                 .map(async (file) => {
                     const filePath = path.join(directory, file);
                     const fileSize = await getFileSize(filePath);
+
                     return {
-                        path: filePath,
-                        size: fileSize
+                        file_path: filePath,
+                        file_size: fileSize
                     };
                 })
         );
@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
         return images;
     } catch (error) {
         console.error(
-            `Error reading directory: ${directory} | Error: ${error}`
+            `An error occurred while trying to read ${directory}: ${error}`
         );
         return [];
     }

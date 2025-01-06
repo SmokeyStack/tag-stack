@@ -27,9 +27,11 @@ export async function resizeImage(image: string): Promise<string> {
                 );
                 resized_image.setPixelColor(color, x, y);
             }
-
         return resized_image.getBase64('image/png');
     } catch (error) {
+        console.error(
+            `An error occurred while trying to resize ${image}: ${error}`
+        );
         throw new Error(`Error resizing ${image}: ${error}`);
     }
 }

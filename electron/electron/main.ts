@@ -44,16 +44,16 @@ function sqliteOperations(action: any, sql: any, params = []) {
     const db = new sqlite3.Database(`${app.getPath('userData')}/db/tags.db`);
 
     return new Promise((resolve, reject) => {
-        const callback = (err: any, result: unknown) => {
-            if (err) reject(err);
+        const callback = (error: any, result: unknown) => {
+            if (error) reject(error);
             else resolve(result);
         };
 
         switch (action) {
             case 'run':
-                db.run(sql, params, function (err: any) {
+                db.run(sql, params, function (error: any) {
                     // @ts-ignore
-                    callback(err, { id: this.lastID, changes: this.changes });
+                    callback(error, { id: this.lastID, changes: this.changes });
                 });
                 break;
             case 'get':
@@ -64,12 +64,12 @@ function sqliteOperations(action: any, sql: any, params = []) {
                 const output: any[] = [];
                 db.each(
                     sql,
-                    (err: any, row: any) => {
-                        if (err) reject(err);
+                    (error: any, row: any) => {
+                        if (error) reject(error);
                         else output.push(row);
                     },
-                    (err: any) => {
-                        if (err) reject(err);
+                    (error: any) => {
+                        if (error) reject(error);
                         else callback(null, output); // Resolve with the collected rows
                     }
                 );
@@ -83,12 +83,16 @@ function sqliteOperations(action: any, sql: any, params = []) {
         db.close();
     });
 }
+function getUserDataPath(): string {
+    return app.getPath('userData');
+}
 function setupIPC(): void {
     ipcMain.handle('app-open-file-dialog', handleFileDialog);
     ipcMain.handle('app-open-url', (_, url: string) => openUrl(url));
     ipcMain.handle('sqlite-operations', (_, action, sql, params) =>
         sqliteOperations(action, sql, params)
     );
+    ipcMain.handle('get-user-data-path', getUserDataPath);
 }
 function initialzeApp(): void {
     app.on('window-all-closed', () => {
