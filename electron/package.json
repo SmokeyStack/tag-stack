@@ -1,16 +1,18 @@
 {
-  "name": "tag-stack",
+  "name": "tag-stack-electron",
   "private": true,
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "install-app-deps && nuxt prepare"
   },
   "dependencies": {
     "@nuxtjs/color-mode": "^3.5.2",
     "@nuxtjs/tailwindcss": "^6.12.2",
+    "@vee-validate/zod": "^4.15.0",
+    "@vueuse/core": "^12.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jimp": "^1.6.0",
@@ -18,14 +20,18 @@
     "nuxt": "^3.14.1592",
     "radix-vue": "^1.9.11",
     "shadcn-nuxt": "^0.11.3",
+    "sqlite3": "^5.1.7",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "vee-validate": "^4.15.0",
     "vue": "latest",
-    "vue-router": "latest"
+    "vue-router": "latest",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
+    "electron-rebuild": "^3.2.9",
     "nuxt-electron": "^0.7.0",
     "vite-plugin-electron": "^0.29.0",
     "vite-plugin-electron-renderer": "^0.14.6"
