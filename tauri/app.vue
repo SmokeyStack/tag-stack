@@ -10,7 +10,7 @@
                     <ScrollArea class="h-full rounded-md border p-4">
                         <div class="p-4 h-full overflow-auto">
                             <div>
-                                <Button @click="getImages"> Get Images </Button>
+                                <Button @click="getImages">Get Images</Button>
                             </div>
                             <div>
                                 <div v-if="loading">Loading...</div>
@@ -86,8 +86,7 @@
                                         <div>
                                             <span class="font-semibold">
                                                 {{ selected_image?.extension }}
-                                                -
-                                                {{ selected_image?.size }}
+                                                - {{ selected_image?.size }}
                                             </span>
                                         </div>
                                         <div>
@@ -100,14 +99,13 @@
                                 </div>
                             </template>
                             <div class="flex p-6">
-                                <TagsInput
-                                    v-model="tags"
-                                    class="w-full h-m-16 p-4">
-                                    <TagsInputItem
-                                        v-for="tag in tags"
-                                        :key="tag.id"
-                                        :value="tag.name"
-                                        :style="{
+                                <Dialog>
+                                    <div
+                                        class="flex flex-wrap gap-2 items-center rounded-md border border-input bg-background text-sm w-full h-m-16 p-4">
+                                        <div
+                                            v-for="tag in applied_tags"
+                                            :key="tag.id"
+                                            :style="{
                                             color: TAG_COLORS[
                                                 tag.color as keyof typeof TAG_COLORS
                                             ]?.TEXT,
@@ -118,39 +116,32 @@
                                                 tag.color as keyof typeof TAG_COLORS
                                             ]?.BORDER}`
                                         }"
-                                        class="font-semibold text-center">
-                                        <TagsInputItemText />
-                                        <TagsInputItemDelete
-                                            :style="{
-                                                color: TAG_COLORS[
-                                                tag.color as keyof typeof TAG_COLORS
-                                            ]?.TEXT
-                                            }" />
-                                    </TagsInputItem>
-                                    <Plus
-                                        class="w-4 h-4"
-                                        @click="open = true" />
-                                    <CommandDialog v-model:open="open">
-                                        <CommandInput
-                                            placeholder="Search Tags" />
-                                        <CommandList>
-                                            <CommandEmpty>
-                                                No results found.
-                                            </CommandEmpty>
-                                            <CommandGroup heading="Tags">
-                                                <CommandItem
-                                                    v-for="tag in tags"
-                                                    :key="tag.id"
-                                                    :value="tag.name"
-                                                    @select.prevent="
-                                                        handleTagSelect(tag)
-                                                    ">
-                                                    {{ tag.name }}
-                                                </CommandItem>
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </CommandDialog>
-                                </TagsInput>
+                                            data-state="inactive"
+                                            class="flex h-6 items-center rounded bg-secondary data-[state=active]:ring-ring data-[state=active]:ring-2 data-[state=active]:ring-offset-2 ring-offset-background font-semibold text-center">
+                                            <span
+                                                class="py-1 px-2 text-sm rounded">
+                                                {{ tag.name }}
+                                            </span>
+                                            <div
+                                                @click="
+                                                    applied_tags.splice(
+                                                        applied_tags.indexOf(
+                                                            tag
+                                                        ),
+                                                        1
+                                                    )
+                                                "
+                                                class="flex rounded bg-transparent mr-1">
+                                                <X class="w-4 h-4" />
+                                            </div>
+                                        </div>
+                                        <DialogTrigger asChild @click.stop>
+                                            <Plus class="w-4 h-4" />
+                                        </DialogTrigger>
+                                        <TagManager
+                                            @select-tag="handleTagSelect" />
+                                    </div>
+                                </Dialog>
                             </div>
                         </ResizablePanel>
                     </ResizablePanelGroup>
@@ -161,48 +152,19 @@
 </template>
 
 <script setup lang="ts">
-    import { Button } from '@/components/ui/button';
-    import {
-        ResizableHandle,
-        ResizablePanel,
-        ResizablePanelGroup
-    } from '@/components/ui/resizable';
-    import { ScrollArea } from '@/components/ui/scroll-area';
-    import {
-        TagsInput,
-        TagsInputItem,
-        TagsInputItemDelete,
-        TagsInputItemText
-    } from '@/components/ui/tags-input';
-    import {
-        CommandEmpty,
-        CommandGroup,
-        CommandItem,
-        CommandList
-    } from '@/components/ui/command';
-    import { Plus } from 'lucide-vue-next';
-
+    import { Plus, X } from 'lucide-vue-next';
     import * as core from '@tauri-apps/api/core';
     import * as path from '@tauri-apps/api/path';
     import * as dialog from '@tauri-apps/plugin-dialog';
     import * as fs from '@tauri-apps/plugin-fs';
     import * as sql from '@tauri-apps/plugin-sql';
 
-    import { ref } from 'vue';
-    import { resizeImage } from '@/utils/resize_image';
-    import { fetchTags } from '@/composables/fetch_tags';
-    import { emitEvent } from '@/utils/event_bus';
-
     const image_data = ref<TagStackImageData[]>([]);
     const selected_image = ref<TagStackImageData | null>(null);
     const loading = ref<boolean>(false);
-    const open = ref(false);
-    const tags = ref<Tag[]>([]);
-    const available_tags: Tag[] = [];
+    const tags = useState<Tag[]>('appTags');
+    const applied_tags = ref<Tag[]>([]);
     const search_term = ref('');
-    const filteredTags = computed(() =>
-        available_tags.filter((i) => !tags.value.includes(i))
-    );
 
     async function openDialog(): Promise<string | null> {
         try {
@@ -293,11 +255,8 @@
         return url.split('.').pop()!.toUpperCase();
     }
     function handleTagSelect(tag: Tag) {
-        if (typeof tag === 'string') {
-            search_term.value = '';
-            tags.value.push(tag);
-        }
-        if (filteredTags.value.length === 0) open.value = false;
+        search_term.value = '';
+        if (!applied_tags.value.includes(tag)) applied_tags.value.push(tag);
     }
     onMounted(async () => {
         const tags_temp = [
@@ -346,10 +305,8 @@
         }
         await db.close();
 
-        const fetchedTags = await fetchTags();
-        available_tags.push(...fetchedTags);
-        tags.value.push(...fetchedTags);
-
-        emitEvent('fetch_tags');
+        await callOnce(async () => {
+            tags.value = await fetchTags();
+        });
     });
 </script>

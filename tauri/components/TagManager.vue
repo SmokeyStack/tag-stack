@@ -1,33 +1,6 @@
 <script setup lang="ts">
-    import { Button } from '@/components/ui/button';
-    import {
-        DialogContent,
-        DialogFooter,
-        DialogHeader,
-        DialogTitle
-    } from '@/components/ui/dialog';
-    import {
-        Command,
-        CommandEmpty,
-        CommandGroup,
-        CommandInput,
-        CommandItem,
-        CommandList
-    } from '@/components/ui/command';
-
-    import { ref } from 'vue';
-    import { fetchTags } from '@/composables/fetch_tags';
-    import { onEvent } from '~/utils/event_bus';
-
-    const tags = ref<Tag[]>([]);
-
-    onMounted(async () => {
-        onEvent('fetch_tags', async () => {
-            console.log('Callling fetch_tags from TagManager.vue');
-            await fetchTags();
-            tags.value.push(...useNuxtData('tags').data.value);
-        });
-    });
+    const tags = useState<Tag[]>('appTags');
+    const emit = defineEmits(['select-tag']);
 </script>
 
 <template>
@@ -59,7 +32,8 @@
                                                 tag.color as keyof typeof TAG_COLORS
                                             ]?.BORDER}`
                                         }"
-                                        class="py-1 px-2 text-sm rounded font-semibold text-center">
+                                        class="py-1 px-2 text-sm rounded font-semibold text-center"
+                                        @click="emit('select-tag', tag)">
                                         {{ tag.name }}
                                     </div>
                                 </div>
@@ -69,8 +43,5 @@
                 </CommandList>
             </Command>
         </DialogHeader>
-        <DialogFooter class="p-6 pt-0">
-            <Button type="submit"> Save changes </Button>
-        </DialogFooter>
     </DialogContent>
 </template>
