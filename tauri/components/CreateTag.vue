@@ -95,11 +95,12 @@
         const db = await sql.default.load(`sqlite:db/tags.db`);
 
         try {
-            const result: any = await db.select(
+            const result: any[] = await db.select(
                 'SELECT MAX(id) as max_id FROM tags'
             );
+            console.log(JSON.stringify(result));
 
-            return result.max_id + 1;
+            return result[0].max_id + 1;
         } catch (error) {
             console.error(`Error getting next tag ID: ${error}`);
             throw new Error('Failed to get next tag ID');
@@ -114,13 +115,13 @@
 
             try {
                 await db.execute(
-                    'INSERT OR REPLACE INTO tags (id, name, shorthand, color) VALUES (?, ?, ?, ?)',
+                    'INSERT OR REPLACE INTO tags (id, name, shorthand, color) VALUES ($1, $2, $3, $4)',
                     [id, tag.name, tag.shorthand || null, tag.color]
                 );
                 if (tag.aliases)
                     for (const alias of tag.aliases)
                         await db.execute(
-                            'INSERT OR REPLACE INTO tag_aliases (tag_id, alias) VALUES (?, ?)',
+                            'INSERT OR REPLACE INTO tag_aliases (tag_id, alias) VALUES ($1, $2)',
                             [id, alias]
                         );
                 emit('create-tag-submit');

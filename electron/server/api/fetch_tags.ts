@@ -17,11 +17,8 @@ export default defineEventHandler(async (event) => {
         db.each(
             'SELECT * FROM tags',
             (err: any, row: any) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    output.push(row);
-                }
+                if (err) reject(err);
+                else output.push(row);
             },
             (err: any) => {
                 if (err) reject(err);

@@ -6,7 +6,7 @@ export async function fetchTags(): Promise<Tag[]> {
     const db = await sql.default.load('sqlite:db/tags.db');
 
     try {
-        const result: any = await db.select('SELECT * FROM tags');
+        const result: any[] = await db.select('SELECT * FROM tags');
         tags.value = result.map((tag: Tag) => ({
             id: tag.id,
             name: tag.name,

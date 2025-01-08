@@ -97,15 +97,14 @@
                                         </div>
                                     </div>
                                 </div>
-                            </template>
-                            <div class="flex p-6">
-                                <Dialog>
-                                    <div
-                                        class="flex flex-wrap gap-2 items-center rounded-md border border-input bg-background text-sm w-full h-m-16 p-4">
+                                <div class="flex p-6">
+                                    <Dialog>
                                         <div
-                                            v-for="tag in applied_tags"
-                                            :key="tag.id"
-                                            :style="{
+                                            class="flex flex-wrap gap-2 items-center rounded-md border border-input bg-background text-sm w-full h-m-16 p-4">
+                                            <div
+                                                v-for="tag in applied_tags"
+                                                :key="tag.id"
+                                                :style="{
                                             color: TAG_COLORS[
                                                 tag.color as keyof typeof TAG_COLORS
                                             ]?.TEXT,
@@ -116,33 +115,29 @@
                                                 tag.color as keyof typeof TAG_COLORS
                                             ]?.BORDER}`
                                         }"
-                                            data-state="inactive"
-                                            class="flex h-6 items-center rounded bg-secondary data-[state=active]:ring-ring data-[state=active]:ring-2 data-[state=active]:ring-offset-2 ring-offset-background font-semibold text-center">
-                                            <span
-                                                class="py-1 px-2 text-sm rounded">
-                                                {{ tag.name }}
-                                            </span>
-                                            <div
-                                                @click="
-                                                    applied_tags.splice(
-                                                        applied_tags.indexOf(
-                                                            tag
-                                                        ),
-                                                        1
-                                                    )
-                                                "
-                                                class="flex rounded bg-transparent mr-1">
-                                                <X class="w-4 h-4" />
+                                                data-state="inactive"
+                                                class="flex h-6 items-center rounded bg-secondary data-[state=active]:ring-ring data-[state=active]:ring-2 data-[state=active]:ring-offset-2 ring-offset-background font-semibold text-center">
+                                                <span
+                                                    class="py-1 px-2 text-sm rounded">
+                                                    {{ tag.name }}
+                                                </span>
+                                                <div
+                                                    @click="
+                                                        handleTagDelete(tag)
+                                                    "
+                                                    class="flex rounded bg-transparent mr-1">
+                                                    <X class="w-4 h-4" />
+                                                </div>
                                             </div>
+                                            <DialogTrigger asChild @click.stop>
+                                                <Plus class="w-4 h-4" />
+                                            </DialogTrigger>
+                                            <TagManager
+                                                @select-tag="handleTagSelect" />
                                         </div>
-                                        <DialogTrigger asChild @click.stop>
-                                            <Plus class="w-4 h-4" />
-                                        </DialogTrigger>
-                                        <TagManager
-                                            @select-tag="handleTagSelect" />
-                                    </div>
-                                </Dialog>
-                            </div>
+                                    </Dialog>
+                                </div>
+                            </template>
                         </ResizablePanel>
                     </ResizablePanelGroup>
                 </ResizablePanel>
@@ -165,6 +160,7 @@
     const tags = useState<Tag[]>('appTags');
     const applied_tags = ref<Tag[]>([]);
     const search_term = ref('');
+    const entries = useState<Entry[]>('appEntries');
 
     async function openDialog(): Promise<string | null> {
         try {
@@ -212,6 +208,7 @@
         image: HTMLImageElement
     ): TagStackImageData {
         return {
+            id: -1,
             url,
             width: image.width,
             height: image.height,
@@ -239,6 +236,15 @@
             const new_image_data: TagStackImageData[] = await Promise.all(
                 files.map(processImage)
             );
+
+            for (const image of new_image_data) {
+                const exists = await entryExists(image);
+
+                if (!exists) await insertEntry(image);
+                else image.id = exists;
+            }
+
+            entries.value = await fetchEntries();
             image_data.value = new_image_data;
         } catch (error) {
             console.error(
@@ -250,62 +256,170 @@
     }
     function selectImage(image: TagStackImageData) {
         selected_image.value = image;
+        if (!image) return;
+
+        const entry = entries.value.find((entry) => entry.id === image.id);
+
+        if (!entry?.fields) return;
+
+        const tag_ids: number[] =
+            (entry.fields as { [key: string]: any })['tag_id'] ?? [];
+        const tag_map: Map<number, Tag> = new Map(
+            tags.value.map((tag) => [tag.id, tag])
+        );
+        applied_tags.value = tag_ids
+            .filter((tag) => tag_map.has(tag))
+            .map((tag) => tag_map.get(tag) as Tag);
     }
     function getExtension(url: string): string {
         return url.split('.').pop()!.toUpperCase();
     }
-    function handleTagSelect(tag: Tag) {
+    async function handleTagSelect(tag: Tag) {
         search_term.value = '';
-        if (!applied_tags.value.includes(tag)) applied_tags.value.push(tag);
+
+        if (!applied_tags.value.includes(tag)) {
+            applied_tags.value.push(tag);
+            if (selected_image.value)
+                await insertTagIntoImage(selected_image.value.id, tag.id);
+        }
     }
-    onMounted(async () => {
-        const tags_temp = [
-            {
-                id: 0,
-                name: 'Archived',
-                aliases: ['Archive'],
-                color: 'RED'
-            },
-            {
-                id: 1,
-                name: 'Favorite',
-                aliases: ['Favorited', 'Favorites'],
-                color: 'YELLOW'
-            },
-            {
-                id: 1000,
-                name: 'Deferred Rendering',
-                shorthand: 'dr',
-                aliases: ['shaders'],
-                color: 'MINT'
-            }
-        ];
-        if (!(await fs.exists('db', { baseDir: path.BaseDirectory.AppData })))
-            await fs.mkdir('db', { baseDir: path.BaseDirectory.AppData });
+    function handleTagDelete(tag: Tag) {
+        applied_tags.value.splice(applied_tags.value.indexOf(tag), 1);
 
-        const db = await sql.default.load(`sqlite:db/tags.db`);
-        await db.execute(
-            'CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, name TEXT, shorthand TEXT, color TEXT)'
-        );
-        await db.execute(
-            'CREATE TABLE IF NOT EXISTS aliases (id INTEGER PRIMARY KEY AUTOINCREMENT, tag_id INTEGER, alias TEXT, UNIQUE (tag_id, alias), FOREIGN KEY (tag_id) REFERENCES tags (id))'
-        );
+        if (selected_image.value)
+            removeTagFromImage(selected_image.value.id, tag.id);
+    }
+    async function insertEntry(entry: TagStackImageData) {
+        const db = await sql.default.load('sqlite:db/tags.db');
 
-        for (const tag of tags_temp) {
+        try {
             await db.execute(
-                'INSERT OR REPLACE INTO tags (id, name, shorthand, color) VALUES ($1, $2, $3, $4)',
-                [tag.id, tag.name, tag.shorthand || null, tag.color]
+                'INSERT INTO entries (filename, path) VALUES ($1, $2)',
+                [entry.filename, entry.directory]
+            );
+            const result: any[] = await db.select(
+                'SELECT MAX(id) as id FROM entries',
+                [entry.filename, entry.directory]
+            );
+            entry.id = result[0].id;
+            await db.execute(
+                'INSERT INTO fields (entry_id, tag_id) VALUES ($1, $2)',
+                [entry.id, 1]
+            );
+        } catch (error) {
+            console.error(
+                `An error occurred while trying to insert an entry: ${error}`
+            );
+            throw new Error('Failed to insert entry.');
+        } finally {
+            await db.close();
+        }
+    }
+    async function entryExists(
+        entry: TagStackImageData
+    ): Promise<number | null> {
+        const db = await sql.default.load('sqlite:db/tags.db');
+
+        try {
+            const result: any[] = await db.select(
+                'SELECT id FROM entries WHERE filename = $1 AND path = $2',
+                [entry.filename, entry.directory]
             );
 
-            for (const alias of tag.aliases)
-                await db.execute(
-                    'INSERT OR IGNORE INTO aliases (tag_id, alias) VALUES ($1, $2)',
-                    [tag.id, alias]
-                );
+            return result.length !== 0 ? result[0].id : null;
+        } catch (error) {
+            console.error(
+                `An error occurred while trying to check if an entry exists: ${error}`
+            );
+            throw new Error('Failed to check if entry exists.');
+        } finally {
+            await db.close();
         }
-        await db.close();
+    }
+    async function removeTagFromImage(id: number, tag: number) {
+        const db = await sql.default.load('sqlite:db/tags.db');
 
+        try {
+            await db.execute(
+                'DELETE FROM fields WHERE entry_id = $1 AND tag_id = $2',
+                [id, tag]
+            );
+            entries.value = await fetchEntries();
+        } catch (error) {
+            console.error('Error removing tag from image:', error);
+            throw new Error('Failed to remove tag from image.');
+        } finally {
+            await db.close();
+        }
+    }
+    async function insertTagIntoImage(id: number, tag: number) {
+        const db = await sql.default.load('sqlite:db/tags.db');
+
+        try {
+            await db.execute(
+                'INSERT INTO fields (entry_id, tag_id) VALUES ($1, $2)',
+                [id, tag]
+            );
+            entries.value = await fetchEntries();
+        } catch (error) {
+            console.error('Error inserting tag into image:', error);
+            throw new Error('Failed to inserting tag into image.');
+        } finally {
+            await db.close();
+        }
+    }
+    onMounted(async () => {
         await callOnce(async () => {
+            const default_tags = [
+                {
+                    id: 0,
+                    name: 'Archived',
+                    aliases: ['Archive'],
+                    color: 'RED'
+                },
+                {
+                    id: 1,
+                    name: 'Favorite',
+                    aliases: ['Favorited', 'Favorites'],
+                    color: 'YELLOW'
+                }
+            ];
+
+            if (
+                !(await fs.exists('db', {
+                    baseDir: path.BaseDirectory.AppData
+                }))
+            )
+                await fs.mkdir('db', { baseDir: path.BaseDirectory.AppData });
+
+            const db = await sql.default.load(`sqlite:db/tags.db`);
+            await db.execute(
+                'CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, name TEXT, shorthand TEXT, color TEXT)'
+            );
+            await db.execute(
+                'CREATE TABLE IF NOT EXISTS aliases (id INTEGER PRIMARY KEY AUTOINCREMENT, tag_id INTEGER, alias TEXT, UNIQUE (tag_id, alias), FOREIGN KEY (tag_id) REFERENCES tags (id))'
+            );
+            await db.execute(
+                'CREATE TABLE IF NOT EXISTS entries (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT NOT NULL, path TEXT NOT NULL)'
+            );
+            await db.execute(
+                'CREATE TABLE IF NOT EXISTS fields (entry_id INTEGER, tag_id INTEGER, FOREIGN KEY (entry_id) REFERENCES entries (id))'
+            );
+
+            for (const tag of default_tags) {
+                await db.execute(
+                    'INSERT OR REPLACE INTO tags (id, name, shorthand, color) VALUES ($1, $2, $3, $4)',
+                    [tag.id, tag.name, null, tag.color]
+                );
+
+                for (const alias of tag.aliases)
+                    await db.execute(
+                        'INSERT OR IGNORE INTO aliases (tag_id, alias) VALUES ($1, $2)',
+                        [tag.id, alias]
+                    );
+            }
+            await db.close();
+
             tags.value = await fetchTags();
         });
     });
