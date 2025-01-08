@@ -155,6 +155,7 @@
     const tags = useState<Tag[]>('appTags');
     const applied_tags = ref<Tag[]>([]);
     const search_term = ref('');
+    const entries = useState<Entry[]>('appEntries');
 
     async function openDialog(): Promise<string | null> {
         return await window.ipcRenderer.invoke('app-open-file-dialog');
@@ -232,6 +233,7 @@
                 else image.id = exists;
             }
 
+            entries.value = await fetchEntries();
             image_data.value = new_image_data;
         } catch (error) {
             console.error(
@@ -244,7 +246,20 @@
     async function selectImage(image: TagStackImageData) {
         selected_image.value = image;
 
-        if (image) applied_tags.value = await getTagsFromImage(image);
+        if (!image) return;
+
+        const entry = entries.value.find((entry) => entry.id == image.id);
+
+        if (!entry?.fields) return;
+
+        const tag_ids: number[] =
+            (entry.fields as { [key: string]: any })['tag_id'] ?? [];
+        const tag_map: Map<number, Tag> = new Map(
+            tags.value.map((tag) => [tag.id, tag])
+        );
+        applied_tags.value = tag_ids
+            .filter((tag) => tag_map.has(tag))
+            .map((tag) => tag_map.get(tag) as Tag);
     }
     function getExtension(url: string): string {
         return url.split('.').pop()!.toUpperCase();
@@ -317,6 +332,7 @@
                 'DELETE FROM fields WHERE entry_id = ? AND tag_id = ?',
                 [id, tag]
             );
+            entries.value = await fetchEntries();
         } catch (error) {
             console.error('Error removing tag from image:', error);
             throw new Error('Failed to remove tag from image.');
@@ -329,6 +345,7 @@
             'INSERT INTO fields (entry_id, tag_id) VALUES (?, ?)',
             [id, tag]
         );
+        entries.value = await fetchEntries();
     }
     onMounted(async () => {
         await callOnce(async () => {
