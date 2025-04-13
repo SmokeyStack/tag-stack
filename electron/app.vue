@@ -255,21 +255,21 @@
             }
 
             const db_entries: Entry[] = await fetchEntries();
-            const entryMap = new Map<number, TagStackImageData>();
+            const entry_map = new Map<number, TagStackImageData>();
             for (const entry of db_entries) {
                 const filename = entry.filename;
                 const directory = entry.path;
                 const extension = entry.filename.split('.').pop();
-                const image = new_image_data.find((file) => {
-                    file.directory === directory &&
+                const image = new_image_data.find(
+                    (file) =>
+                        file.directory === directory &&
                         file.filename === filename &&
-                        file.extension.toLowerCase() === extension;
-                });
+                        file.extension.toLowerCase() === extension
+                );
                 if (image) {
-                    entryMap.set(entry.id, image);
+                    entry_map.set(entry.id, image);
                 } else {
-                    // Add placeholder image data
-                    entryMap.set(entry.id, {
+                    entry_map.set(entry.id, {
                         id: entry.id,
                         url: '',
                         width: 0,
@@ -288,7 +288,7 @@
             }
 
             const ordered_image_data = db_entries
-                .map((entry) => entryMap.get(entry.id))
+                .map((entry) => entry_map.get(entry.id))
                 .filter((image): image is TagStackImageData => !!image);
             entries.value = await fetchEntries();
             image_data.value = ordered_image_data;
@@ -309,14 +309,7 @@
 
         if (!entry?.fields) return;
 
-        const tag_ids: number[] =
-            (entry.fields as { [key: string]: any })['tag_id'] ?? [];
-        const tag_map: Map<number, Tag> = new Map(
-            tags.value.map((tag) => [tag.id, tag])
-        );
-        applied_tags.value = tag_ids
-            .filter((tag) => tag_map.has(tag))
-            .map((tag) => tag_map.get(tag) as Tag);
+        applied_tags.value = await getTagsFromImage(image);
     }
     function getExtension(url: string): string {
         return url.split('.').pop()!.toUpperCase();
