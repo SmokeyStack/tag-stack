@@ -20,7 +20,7 @@
                                 <div v-if="loading">Loading...</div>
                                 <div
                                     v-else-if="image_data.length"
-                                    class="grid grid-cols-custom-3 gap-4">
+                                    class="grid grid-cols-(--custom-3) gap-4">
                                     <div
                                         v-for="image in image_data"
                                         :key="image.url"
