@@ -1,6 +1,10 @@
 <template>
     <div class="h-screen flex flex-col">
         <AppMenubar />
+        <div class="p-4 flex -center justify-between gap-4">
+            <Input></Input>
+            <Button>Search</Button>
+        </div>
         <div class="flex-grow overflow-hidden">
             <ResizablePanelGroup direction="horizontal" class="h-full">
                 <ResizablePanel
@@ -10,7 +14,7 @@
                     <ScrollArea class="h-full rounded-md border p-4">
                         <div class="p-4 h-full overflow-auto">
                             <div>
-                                <Button @click="getImages">Get Images</Button>
+                                <Button @click="getImages()">Get Images</Button>
                             </div>
                             <div>
                                 <div v-if="loading">Loading...</div>
@@ -26,19 +30,26 @@
                                                 selected_image === image
                                         }"
                                         @click="selectImage(image)">
-                                        <template v-if="!image.is_square">
-                                            <img
-                                                :src="image.url"
-                                                :alt="image.url"
-                                                class="w-full h-full object-cover blur" />
+                                        <template v-if="image.isPlaceholder">
+                                            <Link2Off
+                                                class="w-full h-full object-contain"
+                                                color="#e22c3c" />
                                         </template>
-                                        <div
-                                            class="absolute inset-0 flex justify-center items-center">
-                                            <img
-                                                :src="image.url"
-                                                :alt="image.url"
-                                                class="w-full h-full object-contain" />
-                                        </div>
+                                        <template v-else>
+                                            <template v-if="!image.is_square">
+                                                <img
+                                                    :src="image.url"
+                                                    :alt="image.url"
+                                                    class="w-full h-full object-cover blur" />
+                                            </template>
+                                            <div
+                                                class="absolute inset-0 flex justify-center items-center">
+                                                <img
+                                                    :src="image.url"
+                                                    :alt="image.url"
+                                                    class="w-full h-full object-contain" />
+                                            </div>
+                                        </template>
                                     </div>
                                 </div>
                                 <div v-else>No images available</div>
@@ -54,7 +65,7 @@
                     <ResizablePanelGroup direction="vertical">
                         <ResizablePanel :min-size="40" :default-size="25">
                             <div
-                                class="h-full p-4 flex items-center justify-center">
+                                class="h-full rounded-md border p-4 flex items-center justify-center">
                                 <template v-if="selected_image">
                                     <img
                                         :src="selected_image.url"
@@ -147,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-    import { Plus, X } from 'lucide-vue-next';
+    import { Plus, X, Link2Off } from 'lucide-vue-next';
 
     const image_data = ref<TagStackImageData[]>([]);
     const selected_image = ref<TagStackImageData | null>(null);
@@ -213,12 +224,22 @@
             size: source.file_size
         };
     }
-    async function getImages() {
+    async function getImages(cache: boolean = false) {
         loading.value = true;
+        let file_path: string | null;
+
+        if (!cache) {
+            file_path = await openDialog();
+            await window.ipcRenderer.invoke(
+                'update-recent-directories',
+                file_path
+            );
+        } else
+            file_path = await window.ipcRenderer.invoke(
+                'get-most-recent-directory'
+            );
 
         try {
-            const file_path: string | null = await openDialog();
-
             if (!file_path) throw new Error('No file path selected.');
 
             const files: FileData[] = await fetchFiles(file_path);
@@ -233,8 +254,44 @@
                 else image.id = exists;
             }
 
+            const db_entries: Entry[] = await fetchEntries();
+            const entryMap = new Map<number, TagStackImageData>();
+            for (const entry of db_entries) {
+                const filename = entry.filename;
+                const directory = entry.path;
+                const extension = entry.filename.split('.').pop();
+                const image = new_image_data.find((file) => {
+                    file.directory === directory &&
+                        file.filename === filename &&
+                        file.extension.toLowerCase() === extension;
+                });
+                if (image) {
+                    entryMap.set(entry.id, image);
+                } else {
+                    // Add placeholder image data
+                    entryMap.set(entry.id, {
+                        id: entry.id,
+                        url: '',
+                        width: 0,
+                        height: 0,
+                        is_square: false,
+                        directory: entry.path,
+                        filename: entry.filename,
+                        extension: '',
+                        size: '',
+                        isPlaceholder: true
+                    });
+                    console.log(
+                        `Entry not found in directory: ${directory}\\${filename}`
+                    );
+                }
+            }
+
+            const ordered_image_data = db_entries
+                .map((entry) => entryMap.get(entry.id))
+                .filter((image): image is TagStackImageData => !!image);
             entries.value = await fetchEntries();
-            image_data.value = new_image_data;
+            image_data.value = ordered_image_data;
         } catch (error) {
             console.error(
                 `An error occurred while trying to get images: ${error}`
@@ -300,7 +357,9 @@
                 [entry.id, 1]
             );
         } catch (error) {
-            console.error('Error during insertEntry:', error);
+            console.error(
+                `An error occurred while trying to insert an entry: ${error}`
+            );
             throw new Error('Failed to insert entry.');
         }
     }
@@ -400,6 +459,7 @@
                     );
             }
             tags.value = await fetchTags();
+            await getImages(true);
         });
     });
 </script>

@@ -83,6 +83,66 @@ function sqliteOperations(action: any, sql: any, params = []) {
         db.close();
     });
 }
+function updateRecentDirectories(directory_path: string[]): void {
+    const recent_directories_path = `${app.getPath(
+        'userData'
+    )}/db/recent_directories.json`;
+
+    if (!fs.existsSync(`${app.getPath('userData')}/db`))
+        fs.mkdirSync(`${app.getPath('userData')}/db`);
+    if (!fs.existsSync(recent_directories_path))
+        fs.writeFileSync(recent_directories_path, '[]');
+
+    const recent_directories: string[] = JSON.parse(
+        fs.readFileSync(recent_directories_path, 'utf-8')
+    );
+
+    if (!Array.isArray(recent_directories)) {
+        console.error(
+            `Invalid format of recent_directories.json. It should be an array.`
+        );
+        throw new Error(
+            'Invalid format of recent_directories.json. It should be an array.'
+        );
+    }
+
+    directory_path.forEach((entry) => {
+        if (recent_directories.includes(entry))
+            recent_directories.splice(recent_directories.indexOf(entry), 1);
+
+        recent_directories.unshift(entry);
+    });
+
+    if (recent_directories.length > 10) recent_directories.length = 10;
+
+    fs.writeFileSync(
+        recent_directories_path,
+        JSON.stringify(recent_directories)
+    );
+}
+function getMostRecentDirectory(): string {
+    const recent_directories_path = `${app.getPath(
+        'userData'
+    )}/db/recent_directories.json`;
+
+    if (!fs.existsSync(recent_directories_path))
+        fs.writeFileSync(recent_directories_path, '[]');
+
+    const recent_directories: string[] = JSON.parse(
+        fs.readFileSync(recent_directories_path, 'utf-8')
+    );
+
+    if (!Array.isArray(recent_directories)) {
+        console.error(
+            `Invalid format of recent_directories.json. It should be an array.`
+        );
+        throw new Error(
+            'Invalid format of recent_directories.json. It should be an array.'
+        );
+    }
+
+    return recent_directories[0];
+}
 function getUserDataPath(): string {
     return app.getPath('userData');
 }
@@ -93,6 +153,10 @@ function setupIPC(): void {
         sqliteOperations(action, sql, params)
     );
     ipcMain.handle('get-user-data-path', getUserDataPath);
+    ipcMain.handle('update-recent-directories', (_, directory_path) =>
+        updateRecentDirectories(directory_path)
+    );
+    ipcMain.handle('get-most-recent-directory', getMostRecentDirectory);
 }
 function initialzeApp(): void {
     app.on('window-all-closed', () => {
