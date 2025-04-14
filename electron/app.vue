@@ -230,6 +230,7 @@
 
         if (!cache) {
             file_path = await openDialog();
+            if (!file_path) throw new Error('No file path selected.');
             await window.ipcRenderer.invoke(
                 'update-recent-directories',
                 file_path
@@ -255,6 +256,7 @@
             }
 
             const db_entries: Entry[] = await fetchEntries();
+            console.log('DB Entries:', db_entries);
             const entry_map = new Map<number, TagStackImageData>();
             for (const entry of db_entries) {
                 const filename = entry.filename;
@@ -268,7 +270,7 @@
                 );
                 if (image) {
                     entry_map.set(entry.id, image);
-                } else {
+                } else if (file_path === directory) {
                     entry_map.set(entry.id, {
                         id: entry.id,
                         url: '',
@@ -286,7 +288,6 @@
                     );
                 }
             }
-
             const ordered_image_data = db_entries
                 .map((entry) => entry_map.get(entry.id))
                 .filter((image): image is TagStackImageData => !!image);

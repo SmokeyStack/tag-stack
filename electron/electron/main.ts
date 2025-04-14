@@ -125,6 +125,8 @@ function getMostRecentDirectory(): string {
         'userData'
     )}/db/recent_directories.json`;
 
+    if (!fs.existsSync(`${app.getPath('userData')}/db`))
+        fs.mkdirSync(`${app.getPath('userData')}/db`);
     if (!fs.existsSync(recent_directories_path))
         fs.writeFileSync(recent_directories_path, '[]');
 
