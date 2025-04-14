@@ -12,6 +12,7 @@
         "sql:default",
         "sql:allow-execute",
         "fs:default",
+        "fs:allow-app-write",
         {
             "identifier": "fs:scope",
             "allow": [

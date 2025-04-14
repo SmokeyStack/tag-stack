@@ -31,4 +31,5 @@ export interface TagStackImageData {
     filename: string;
     extension: string;
     size: string;
+    isPlaceholder?: boolean;
 }
