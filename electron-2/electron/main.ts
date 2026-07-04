@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, HandlerDetails, shell } from 'electron';
 import path from 'node:path';
 import { registerIpcHandlers } from './ipc/app';
 import { registerMediaProtocol } from './protocol';
@@ -39,6 +39,17 @@ function createWindow() {
 
     mainWindow.on('closed', () => {
         mainWindow = null;
+    });
+    mainWindow.webContents.setWindowOpenHandler((details: HandlerDetails) => {
+        if (details.url.startsWith('http:') || details.url.startsWith('https:'))
+            shell.openExternal(details.url);
+
+        return { action: 'deny' };
+    });
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        const devServer = process.env.VITE_DEV_SERVER_URL;
+        if (devServer && url.startsWith(devServer)) return;
+        event.preventDefault();
     });
 }
 

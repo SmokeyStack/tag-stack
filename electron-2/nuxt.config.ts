@@ -23,12 +23,36 @@ export default defineNuxtConfig({
          */
         disableDefaultOptions: process.env.NODE_ENV === 'development'
     },
-    modules: ['nuxt-electron', 'shadcn-nuxt'],
+    modules: ['nuxt-electron', 'nuxt-security', 'shadcn-nuxt'],
+    // https://nuxt-security.vercel.app/getting-started/configuration
+    security: {
+        ssg: {
+            meta: true,
+            hashScripts: true,
+            hashStyles: false
+        },
+        headers: {
+            contentSecurityPolicy: {
+                'default-src': ["'self'"],
+                'script-src': ["'self'"],
+                'style-src': ["'self'", "'unsafe-inline'"],
+                'img-src': ["'self'", 'app-media:', 'data:'],
+                'font-src': ["'self'", 'data:'],
+                'connect-src': ["'self'"],
+                'object-src': ["'none'"],
+                'base-uri': ["'none'"],
+                'form-action': ["'none'"]
+            }
+        },
+        rateLimiter: false
+    },
     shadcn: {
         prefix: '',
         componentDir: '@/components/ui'
     },
+    ssr: false,
     vite: {
         plugins: [tailwindcss()]
-    }
+    },
+    $development: { security: { enabled: false } }
 });
