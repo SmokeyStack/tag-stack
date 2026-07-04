@@ -1,0 +1,17 @@
+appId: com.smokeystack.tagstack
+productName: TagStack
+directories:
+    output: release/${version}
+files:
+    - dist-electron/**
+    - .output/public/**
+    - '!node_modules/**'
+npmRebuild: false
+win:
+    target:
+        - target: nsis
+          arch:
+              - x64
+nsis:
+    oneClick: false
+    allowToChangeInstallationDirectory: true

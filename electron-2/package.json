@@ -1,40 +1,42 @@
 {
-  "name": "electron-2",
-  "private": true,
-  "scripts": {
-    "build": "nuxt build",
-    "dev": "nuxt dev",
-    "generate": "nuxt generate",
-    "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
-  },
-  "dependencies": {
-    "@lucide/vue": "^1.23.0",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "nuxt": "^4.4.8",
-    "reka-ui": "^2.10.1",
-    "shadcn-nuxt": "^2.7.4",
-    "tailwind-merge": "^3.6.0",
-    "vue": "^3.5.38",
-    "vue-router": "^5.1.0"
-  },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.3.2",
-    "electron": "^43.0.0",
-    "electron-builder": "^26.15.3",
-    "nuxt-electron": "^0.7.0",
-    "tailwindcss": "^4.3.2",
-    "tw-animate-css": "^1.4.0",
-    "typescript": "^6.0.3",
-    "vite-plugin-electron": "^1.1.0",
-    "vite-plugin-electron-renderer": "^1.0.0"
-  },
   "allowScripts": {
     "@parcel/watcher@2.5.6": true,
     "electron-winstaller@5.4.0": true,
     "esbuild@0.28.1": true,
     "vue-demi@0.14.10": true
   },
-  "main": "dist-electron/main.js"
+  "author": "SmokeyStack",
+  "description": "TagStack",
+  "devDependencies": {
+    "@lucide/vue": "^1.23.0",
+    "@tailwindcss/vite": "^4.3.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3",
+    "nuxt": "^4.4.8",
+    "nuxt-electron": "^0.7.0",
+    "reka-ui": "^2.10.1",
+    "shadcn-nuxt": "^2.7.4",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.2",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^6.0.3",
+    "vite-plugin-electron": "^1.1.0",
+    "vite-plugin-electron-renderer": "^1.0.0",
+    "vue": "^3.5.38",
+    "vue-router": "^5.1.0"
+  },
+  "main": "dist-electron/main.js",
+  "name": "tag-stack-electron-2",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "package": "nuxt generate && electron-builder",
+    "postinstall": "nuxt prepare",
+    "preview": "nuxt preview"
+  },
+  "version": "0.1.0"
 }

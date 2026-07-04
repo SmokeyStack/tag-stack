@@ -1,4 +1,4 @@
-import type { ElectronApi } from '../../electron/contracts';
+import type { ElectronApi } from '#shared/ipc';
 
 export {};
 

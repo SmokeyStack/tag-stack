@@ -24,3 +24,6 @@ logs
 !.env.example
 
 dist-electron
+
+# electron-builder output
+release

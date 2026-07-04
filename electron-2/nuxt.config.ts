@@ -18,7 +18,10 @@ export default defineNuxtConfig({
                 }
             }
         ],
-        disableDefaultOptions: true
+        /**
+         * Special thanks to @mia-san: https://github.com/caoxiemeihao/nuxt-electron/issues/110#issuecomment-3172476435
+         */
+        disableDefaultOptions: process.env.NODE_ENV === 'development'
     },
     modules: ['nuxt-electron', 'shadcn-nuxt'],
     shadcn: {

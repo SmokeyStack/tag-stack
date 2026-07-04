@@ -1,9 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { ElectronApi } from './contracts';
+import { IpcChannels, type ElectronApi } from '../shared/ipc';
 
 const api: ElectronApi = {
-    getAppStartTime: () => ipcRenderer.invoke('app:get-start-time'),
-    openFileDialog: () => ipcRenderer.invoke('dialog:open-files')
+    openDirectoryDialog: () =>
+        ipcRenderer.invoke(IpcChannels.openDirectoryDialog),
+    listDirectory: (directory) =>
+        ipcRenderer.invoke(IpcChannels.listDirectory, directory)
 };
 
 contextBridge.exposeInMainWorld('api', api);

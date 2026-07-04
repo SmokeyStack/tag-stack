@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import { registerIpcHandlers } from './ipc/app';
+import { registerMediaProtocol } from './protocol';
 
 process.env.APP_ROOT = path.join(__dirname, '..');
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
@@ -43,6 +44,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
     registerIpcHandlers();
+    registerMediaProtocol();
     createWindow();
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
