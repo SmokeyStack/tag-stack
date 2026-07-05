@@ -1,6 +1,7 @@
 import { app, BrowserWindow, HandlerDetails, shell } from 'electron';
 import path from 'node:path';
 import { registerIpcHandlers } from './ipc/app';
+import { closeLibrary } from './library/manager';
 import { registerMediaProtocol } from './protocol';
 
 process.env.APP_ROOT = path.join(__dirname, '..');
@@ -63,4 +64,7 @@ app.whenReady().then(() => {
 });
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
+});
+app.on('will-quit', () => {
+    closeLibrary();
 });

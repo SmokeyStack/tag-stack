@@ -3,13 +3,15 @@
     "@parcel/watcher@2.5.6": true,
     "electron-winstaller@5.4.0": true,
     "esbuild@0.28.1": true,
-    "vue-demi@0.14.10": true
+    "vue-demi@0.14.10": true,
+    "better-sqlite3@12.11.1": true
   },
   "author": "SmokeyStack",
   "description": "TagStack",
   "devDependencies": {
     "@lucide/vue": "^1.23.0",
     "@tailwindcss/vite": "^4.3.2",
+    "@types/better-sqlite3": "^7.6.13",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "electron": "^43.0.0",
@@ -25,6 +27,7 @@
     "typescript": "^6.0.3",
     "vite-plugin-electron": "^1.1.0",
     "vite-plugin-electron-renderer": "^1.0.0",
+    "vitest": "^4.1.9",
     "vue": "^3.5.38",
     "vue-router": "^5.1.0"
   },
@@ -36,11 +39,13 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "package": "nuxt generate && electron-builder",
-    "postinstall": "nuxt prepare",
-    "preview": "nuxt preview"
+    "postinstall": "nuxt prepare && electron-builder install-app-deps",
+    "preview": "nuxt preview",
+    "test": "node scripts/test-electron.mjs"
   },
   "version": "0.1.0",
   "dependencies": {
-    "@fontsource-variable/inter": "^5.2.8"
+    "@fontsource-variable/inter": "^5.2.8",
+    "better-sqlite3": "^12.11.1"
   }
 }

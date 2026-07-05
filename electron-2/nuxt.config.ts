@@ -9,7 +9,10 @@ export default defineNuxtConfig({
         build: [
             {
                 // Main-Process entry file of the Electron App.
-                entry: 'electron/main.ts'
+                entry: 'electron/main.ts',
+                vite: {
+                    build: { rolldownOptions: { external: ['better-sqlite3'] } }
+                }
             },
             {
                 entry: 'electron/preload.ts',

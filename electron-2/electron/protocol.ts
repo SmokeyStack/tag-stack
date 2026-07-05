@@ -1,7 +1,8 @@
 import { net, protocol } from 'electron';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { MEDIA_SCHEME } from '../shared/ipc';
-import { isGrantedPath } from './ipc/files';
+import { PathManager } from './security/paths';
 
 protocol.registerSchemesAsPrivileged([
     {
@@ -19,12 +20,13 @@ export function registerMediaProtocol(): void {
     protocol.handle(MEDIA_SCHEME, (request) => {
         const url = new URL(request.url);
         const filePath = decodeURIComponent(url.pathname).replace(/^\//, '');
-        if (!isGrantedPath(filePath))
+        if (!PathManager.isGrantedPath(filePath))
             return new Response(
                 `File has not been granted access: ${filePath}`,
                 { status: 403 }
             );
 
-        return net.fetch(pathToFileURL(filePath).toString());
+        const resolved = path.resolve(filePath);
+        return net.fetch(pathToFileURL(resolved).toString());
     });
 }
