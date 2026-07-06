@@ -9,6 +9,11 @@ const api: ElectronApi = {
     createLibrary: () => ipcRenderer.invoke(IpcChannels.createLibrary),
     closeLibrary: () => ipcRenderer.invoke(IpcChannels.closeLibrary),
     currentLibrary: () => ipcRenderer.invoke(IpcChannels.currentLibrary),
+    openLibrary: (root) => ipcRenderer.invoke(IpcChannels.openLibrary, root),
+    recentLibraries: () => ipcRenderer.invoke(IpcChannels.recentLibraries),
+    removeRecentLibrary: (root) =>
+        ipcRenderer.invoke(IpcChannels.removeRecentLibrary, root),
+    rescanLibrary: () => ipcRenderer.invoke(IpcChannels.rescanLibrary),
     listTags: () => ipcRenderer.invoke(IpcChannels.listTags),
     createTag: (input) => ipcRenderer.invoke(IpcChannels.createTag, input),
     updateTag: (id, patch) =>

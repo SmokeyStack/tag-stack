@@ -41,6 +41,10 @@ export function makeEntriesRepo(db: Database.Database) {
     const unassignTagStmtDb = db.prepare(
         'DELETE FROM entry_tags WHERE entry_id = ? AND tag_id = ?'
     );
+    const selectAllPathsDb = db.prepare(
+        'SELECT id, path, size, mtime_ms FROM entries ORDER BY path'
+    );
+    const removeByIdDb = db.prepare('DELETE FROM entries WHERE id = ?');
 
     function upsertByPath(input: {
         path: string;
@@ -77,6 +81,30 @@ export function makeEntriesRepo(db: Database.Database) {
     function unassignTag(entryId: number, tagId: number): void {
         unassignTagStmtDb.run(entryId, tagId);
     }
+    function listPaths(): {
+        id: number;
+        path: string;
+        size: number | null;
+        mtime_ms: number | null;
+    }[] {
+        return selectAllPathsDb.all() as {
+            id: number;
+            path: string;
+            size: number | null;
+            mtime_ms: number | null;
+        }[];
+    }
+    function removeByIds(ids: number[]): void {
+        for (const id of ids) removeByIdDb.run(id);
+    }
 
-    return { upsertByPath, list, count, assignTag, unassignTag };
+    return {
+        upsertByPath,
+        list,
+        count,
+        assignTag,
+        unassignTag,
+        listPaths,
+        removeByIds
+    };
 }

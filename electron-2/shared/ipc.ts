@@ -6,6 +6,10 @@ export const IpcChannels = {
     createLibrary: 'library:create',
     closeLibrary: 'library:close',
     currentLibrary: 'library:current',
+    openLibrary: 'library:open',
+    recentLibraries: 'library:recent',
+    removeRecentLibrary: 'library:remove-recent',
+    rescanLibrary: 'library:rescan',
     listTags: 'tags:list',
     createTag: 'tags:create',
     updateTag: 'tags:update',
@@ -24,6 +28,16 @@ export interface LibraryInfo {
     root: string;
     name: string;
     entryCount: number;
+}
+export interface RecentLibrary {
+    root: string;
+    name: string;
+    lastOpenedAt: number;
+}
+export interface RescanResult {
+    added: number;
+    removed: number;
+    updated: number;
 }
 export interface Tag {
     id: number;
@@ -52,6 +66,10 @@ export interface ElectronApi {
     createLibrary(): Promise<LibraryInfo | null>;
     closeLibrary(): Promise<void>;
     currentLibrary(): Promise<LibraryInfo | null>;
+    openLibrary(root: string): Promise<LibraryInfo>;
+    recentLibraries(): Promise<RecentLibrary[]>;
+    removeRecentLibrary(root: string): Promise<void>;
+    rescanLibrary(): Promise<RescanResult>;
     listTags(): Promise<Tag[]>;
     createTag(input: TagInput): Promise<Tag>;
     updateTag(id: number, patch: Partial<TagInput>): Promise<Tag>;

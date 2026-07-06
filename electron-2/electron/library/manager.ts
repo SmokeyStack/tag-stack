@@ -7,7 +7,11 @@ import { makeSettingsRepo, type SettingsRepo } from '../db/repo/settings';
 import { makeTagsRepo, type TagsRepo } from '../db/repo/tags';
 import { initSchema } from '../db/schema';
 import { PathManager } from '../security/paths';
-import { IMAGE_FILE_REGEX, type LibraryInfo } from '../../shared/ipc';
+import {
+    IMAGE_FILE_REGEX,
+    type LibraryInfo,
+    type RescanResult
+} from '../../shared/ipc';
 
 let current: {
     root: string;
@@ -58,34 +62,72 @@ export async function openLibraryAt(root: string): Promise<LibraryInfo> {
     const settings = makeSettingsRepo(db);
     current = { root: resolvedRoot, db, tags, entries, settings };
     PathManager.grantExclusive(resolvedRoot);
-    const files = await fs.readdir(resolvedRoot, { withFileTypes: true });
+    await scanAndReconcile();
+    return getLibraryInfo()!;
+}
+export async function scanAndReconcile(): Promise<RescanResult> {
+    const lib = requireLibrary();
+    const files = await fs.readdir(lib.root, { withFileTypes: true });
     const images = files.filter(
         (entry) => entry.isFile() && IMAGE_FILE_REGEX.test(entry.name)
     );
     const statResults = await Promise.allSettled(
         images.map(async (entry) => {
-            const filePath = path.join(resolvedRoot, entry.name);
+            const filePath = path.join(lib.root, entry.name);
             const fileStats = await fs.stat(filePath);
             return { entry, filePath, fileStats };
         })
     );
-    db.transaction(() => {
-        for (const result of statResults) {
-            if (result.status !== 'fulfilled') continue;
+    const onDisk = new Map<
+        string,
+        { filename: string; size: number; mtimeMs: number }
+    >();
+    for (const result of statResults) {
+        if (result.status !== 'fulfilled') continue;
 
-            const { entry, filePath, fileStats } = result.value;
-            entries.upsertByPath({
-                path: path
-                    .relative(resolvedRoot, filePath)
-                    .split(path.sep)
-                    .join('/'),
-                filename: entry.name,
-                size: fileStats.size,
-                mtimeMs: fileStats.mtimeMs
+        const { entry, filePath, fileStats } = result.value;
+        const relativePath = path
+            .relative(lib.root, filePath)
+            .split(path.sep)
+            .join('/');
+        onDisk.set(relativePath, {
+            filename: entry.name,
+            size: fileStats.size,
+            mtimeMs: Math.trunc(fileStats.mtimeMs)
+        });
+    }
+
+    const inDb = new Map(lib.entries.listPaths().map((row) => [row.path, row]));
+    const added: string[] = [];
+    const updated: string[] = [];
+    for (const [relativePath, disk] of onDisk) {
+        const dbRow = inDb.get(relativePath);
+        if (!dbRow) added.push(relativePath);
+        else if (dbRow.size !== disk.size || dbRow.mtime_ms !== disk.mtimeMs)
+            updated.push(relativePath);
+    }
+    const removedIds: number[] = [];
+    for (const [relativePath, dbRow] of inDb)
+        if (!onDisk.has(relativePath)) removedIds.push(dbRow.id);
+
+    lib.db.transaction(() => {
+        for (const relativePath of [...added, ...updated]) {
+            const disk = onDisk.get(relativePath)!;
+            lib.entries.upsertByPath({
+                path: relativePath,
+                filename: disk.filename,
+                size: disk.size,
+                mtimeMs: disk.mtimeMs
             });
         }
+        lib.entries.removeByIds(removedIds);
     })();
-    return getLibraryInfo()!;
+
+    return {
+        added: added.length,
+        removed: removedIds.length,
+        updated: updated.length
+    };
 }
 export function closeLibrary(): void {
     if (!current) return;
